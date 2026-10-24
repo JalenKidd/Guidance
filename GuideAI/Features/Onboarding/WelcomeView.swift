@@ -266,7 +266,7 @@ struct ServerAddressField: View {
                     Text(status).font(.subheadline).foregroundStyle(.secondary)
                 }
             }
-            Text("Leave empty to use this Mac in the Simulator. On an iPhone, use your Mac's address on Wi-Fi.")
+            Text("The address of the Guidance server that keeps your rules. Leave it empty to use the default.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -46,7 +46,7 @@ struct GuidedRulesView: View {
             } header: {
                 if store.isAllKids { Text("All kids") }
             } footer: {
-                Text("Applies on chatbots set to Guided (ChatGPT, Claude, Gemini and others). Prompts like \"write my essay\" or \"solve these for me\" are stopped, and your kid is offered a learning-style prompt instead. If an AI answers with a finished essay or worked-out homework anyway, the answer is blurred and replaced with hints.")
+                Text("Applies on chatbots set to Guided (ChatGPT, Claude, Gemini, etc.).")
             }
 
             Section {

@@ -229,7 +229,6 @@ private struct CategoryRow: View {
     @EnvironmentObject private var store: FamilyStore
     let category: AICategory
     let effective: EffectiveRules
-    @State private var pendingState: CategoryState?
 
     var body: some View {
         let apps = category.apps
@@ -261,10 +260,11 @@ private struct CategoryRow: View {
                 selected: customized.isEmpty ? shared : nil,
                 isCustom: !customized.isEmpty
             ) { state in
-                if customized.isEmpty {
-                    store.updatePolicies { $0.categories[category.id] = state }
-                } else {
-                    pendingState = state
+                // Picking a rule for the whole category also clears the apps' own rules.
+                let domains = customized.flatMap(\.domains)
+                store.updatePolicies { policy in
+                    policy.categories[category.id] = state
+                    for domain in domains { policy.siteOverrides[domain] = nil }
                 }
             }
             if shared == nil && customized.isEmpty { MixedCaption() }
@@ -284,23 +284,6 @@ private struct CategoryRow: View {
         }
         .padding(.top, 6)
         .opacity(!store.isAllKids && effective.masterOff ? 0.55 : 1)
-        .confirmationDialog(
-            "\(customized.count) app\(customized.count == 1 ? " has" : "s have") its own rule",
-            isPresented: Binding(get: { pendingState != nil }, set: { if !$0 { pendingState = nil } }),
-            titleVisibility: .visible,
-            presenting: pendingState
-        ) { state in
-            Button("Set all to \(state.label)") {
-                let domains = customized.flatMap(\.domains)
-                store.updatePolicies { policy in
-                    policy.categories[category.id] = state
-                    for domain in domains { policy.siteOverrides[domain] = nil }
-                }
-            }
-            Button("Keep app rules") {
-                store.updatePolicies { $0.categories[category.id] = state }
-            }
-        }
     }
 
     /// Apps any target kid has given their own rule.

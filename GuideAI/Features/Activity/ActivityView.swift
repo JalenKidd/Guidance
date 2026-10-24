@@ -87,11 +87,6 @@ struct ActivityView: View {
                 }
             }
             .guideCard(padding: 6)
-            Text("Guidance doesn't block these questions. Curiosity is normal, and these alerts are a prompt for a conversation.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
         }
 
         ForEach(kids) { kid in
@@ -121,12 +116,6 @@ struct ActivityView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .guideCard()
         }
-
-        Text("Guidance shows what was blocked or checked, not full conversations. Safety alerts include the message that triggered them.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
     }
 
     private func total(_ activities: [KidActivity], _ kind: ActivityEvent.Kind) -> Int? {

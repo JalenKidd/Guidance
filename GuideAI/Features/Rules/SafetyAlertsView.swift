@@ -1,11 +1,7 @@
 import SwiftUI
 
 struct SafetyAlertsView: View {
-    @EnvironmentObject private var store: FamilyStore
-
     var body: some View {
-        let name = store.selectedKid?.name ?? "your kid"
-
         Form {
             Section {
                 ForEach(SafetyTopic.all) { topic in
@@ -25,13 +21,7 @@ struct SafetyAlertsView: View {
             } header: {
                 Text("Always on")
             } footer: {
-                Text("When \(name) asks an AI about one of these, you get an alert in Activity with their message. Guidance never blocks these questions, and \(name) won't see anything different.")
-            }
-
-            Section {
-                Text("Alerts work on every AI site \(name) can use in Safari, whether it's Guided, Allowed or approved for a while. They're based on the words used, so they can miss things or flag harmless questions. Treat an alert as a reason to talk, not proof.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text("You get an alert in Activity. Nothing is blocked.")
             }
         }
         .navigationTitle("Safety alerts")
