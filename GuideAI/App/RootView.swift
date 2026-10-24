@@ -45,7 +45,16 @@ extension RootView {
         } else if !store.isUnlocked {
             LockView()
         } else {
+            let needsPairing = !store.kids.contains(where: \.paired)
             ParentTabView()
+                // Home stays dimmed behind the pairing card until a kid's phone is paired.
+                .overlay {
+                    if needsPairing {
+                        PairKidView()
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.3), value: needsPairing)
         }
     }
 }

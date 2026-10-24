@@ -43,12 +43,12 @@ python3 Scripts/generate_xcodeproj.py
 
 ## 3. Sign in or create a family (parent)
 
-**Demo accounts:** on the welcome screen, choose **Sign in** and use one of the made-up accounts with password `guidance123`: MarvesPaztanes@gmail.com (the original family), JalenPaztanes@gmail.com, MiguelPaztanes@gmail.com or AlaniPaztanes@gmail.com. Tap **Demo accounts** to fill in the email. Details are in `UPDATE_README.md`.
+**Demo accounts:** on the welcome screen, choose **Sign in** and use one of the made-up accounts with password `guidance123`: MarvesPaztanes@gmail.com (the original family), JalenPaztanes@gmail.com, MiguelPaztanes@gmail.com or AlaniPaztanes@gmail.com. Details are in `UPDATE_README.md`.
 
 Or choose **New family**:
 
 1. Open Guidance, type your kid's name → **Create family**.
-2. **On an iPhone:** open **Server address** first and enter your Mac's Wi-Fi address, e.g. `http://192.168.1.10:8080` (find it with `ipconfig getifaddr en0`). Tap **Test connection**. In the Simulator you can leave it empty.
+2. **On an iPhone:** before running, set your Mac's Wi-Fi address in Xcode: **Product → Scheme → Edit Scheme… → Run → Arguments → Environment Variables**, add `GUIDEAI_API_BASE_URL` = e.g. `http://192.168.1.10:8080` (find it with `ipconfig getifaddr en0`). After signing in you can also change it in **Setup → Server**. The Simulator needs nothing.
 3. The **Home** tab shows every AI category, with its apps in a row underneath. Tap an app for who it's for, its own rule, and custom instructions. Defaults: Chatbots = Guided, Essay / Humanizers / Math / Homework / Companions = Block, Image and Learning-focused AI = Allow.
 
 The app locks whenever it goes to the background. Unlocking needs Face ID or the passcode, so a kid who opens it sees only "AI is guided on this phone."

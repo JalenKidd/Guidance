@@ -11,7 +11,6 @@ struct WelcomeView: View {
     @State private var password = ""
     @State private var parentName = ""
     @State private var kidName = ""
-    @State private var serverAddress = UserDefaults.standard.string(forKey: AppConfig.serverURLKey) ?? ""
     @FocusState private var focused: Field?
 
     private enum Mode: String, CaseIterable, Identifiable {
@@ -21,14 +20,6 @@ struct WelcomeView: View {
     }
 
     private enum Field { case email, password, parent, kid }
-
-    /// Made-up demo accounts (see UPDATE_README); they all use the demo password.
-    private static let demoEmails = [
-        "MarvesPaztanes@gmail.com",
-        "JalenPaztanes@gmail.com",
-        "MiguelPaztanes@gmail.com",
-        "AlaniPaztanes@gmail.com",
-    ]
 
     var body: some View {
         ScrollView {
@@ -44,23 +35,8 @@ struct WelcomeView: View {
                 if mode == .signIn {
                     signInCard
                 } else {
-                    VStack(alignment: .leading, spacing: 14) {
-                        point("square.grid.2x2.fill", "Control AI by category", "Block essay writers, math solvers and homework sites in one tap — new AI sites are added for you.")
-                        point("graduationcap.fill", "Guide the big chatbots", "On ChatGPT, Claude and Gemini, prompts that try to offload homework are stopped and turned into learning.")
-                        point("clock.fill", "Schedules and an off switch", "AI-free bedtime, stricter school nights, or turn all AI off right now.")
-                    }
-                    .guideCard()
-
                     newFamilyCard
                 }
-
-                DisclosureGroup("Server address") {
-                    ServerAddressField(address: $serverAddress)
-                        .padding(.top, 6)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
 
                 if let error = store.errorMessage {
                     ErrorBanner(message: error)
@@ -88,7 +64,7 @@ struct WelcomeView: View {
 
     private var signInCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Sign in to your family")
+            Text("Sign in as a parent")
                 .font(.headline)
             TextField("Email", text: $email)
                 .textContentType(.emailAddress)
@@ -107,14 +83,6 @@ struct WelcomeView: View {
                 .onSubmit(signIn)
                 .padding(12)
                 .background(GuideTheme.tertiaryFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            Menu {
-                ForEach(Self.demoEmails, id: \.self) { demo in
-                    Button(demo) { email = demo; focused = .password }
-                }
-            } label: {
-                Label("Demo accounts", systemImage: "person.2.circle")
-                    .font(.subheadline.weight(.semibold))
-            }
         }
         .guideCard()
     }
@@ -184,7 +152,7 @@ struct WelcomeView: View {
             Text(AppConfig.productDisplayName)
                 .font(.largeTitle.weight(.bold))
                 .foregroundStyle(GuideTheme.heroText)
-            Text("Not a ban. A better path. Set your family's rules for how AI helps your kid learn.")
+            Text("Set your family's rules for how AI helps your children learn.")
                 .font(.body)
                 .foregroundStyle(GuideTheme.heroSecondaryText)
         }
@@ -192,19 +160,6 @@ struct WelcomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(GuideTheme.heroGradient, in: RoundedRectangle(cornerRadius: GuideTheme.cornerRadius, style: .continuous))
         .padding(.top, 8)
-    }
-
-    private func point(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(GuideTheme.brand)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
-            }
-        }
     }
 
     private func create() {

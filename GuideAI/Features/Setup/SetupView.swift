@@ -49,7 +49,7 @@ struct SetupView: View {
                 }
 
                 Section {
-                    PhoneSetupSteps()
+                    PhoneSetupSteps(includesScreenTime: false)
                 } header: {
                     Text("Set up a kid's phone")
                 } footer: {

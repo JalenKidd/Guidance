@@ -28,6 +28,8 @@ struct DebugScreen: View {
             WelcomeView(startsWithNewFamily: name == "welcome-new")
         case "lock":
             LockView()
+        case "pair":
+            PairKidView()
         case "category":
             NavigationStack { CategoryDetailView(categoryID: DebugLaunch.value("-category") ?? "essay") }
         case "app":
