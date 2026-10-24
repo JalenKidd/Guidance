@@ -1,0 +1,31 @@
+:root { --text: #2a0a10; --muted: #6b3a43; --brand: #d11a2e; --soft: #ffe1e5; --field: #f6eef0; --bg: #ffffff; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root { --text: #fff; --muted: #f3c9cf; --brand: #ff4d59; --soft: #40121a; --field: #2a1418; --bg: #1a0a0d; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; width: 320px; max-width: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 -apple-system, system-ui, sans-serif; }
+header { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+header img { width: 40px; height: 40px; border-radius: 10px; }
+.name { font-weight: 700; font-size: 17px; }
+.sub { color: var(--muted); font-size: 13px; }
+.sub { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #29ba63; flex: none; }
+.dot.warn { background: #ff9500; }
+.dot[hidden] { display: none; }
+dl { display: flex; justify-content: space-between; margin: 0 0 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-weight: 600; }
+p { color: var(--muted); margin: 0 0 12px; }
+label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 10px; }
+input { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; padding: 10px 12px; border-radius: 10px; border: 0; background: var(--field); color: var(--text); }
+#code { letter-spacing: .25em; text-transform: uppercase; font-weight: 700; }
+details { margin-bottom: 10px; color: var(--muted); font-size: 13px; }
+summary { margin-bottom: 8px; }
+button { width: 100%; font: inherit; font-weight: 600; border: 0; border-radius: 12px; padding: 11px; background: var(--brand); color: #fff; }
+button.link { background: none; color: var(--brand); margin-top: 6px; padding: 6px; }
+.error { color: #d70015; }
+@media (prefers-color-scheme: dark) { .error { color: #ff6961; } }
+.warning { background: #fff4e5; color: #5c3b00; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+.warning p { color: inherit; margin: 6px 0 10px; }
+.warning .small { font-size: 12px; margin: 8px 0 0; }
+@media (prefers-color-scheme: dark) { .warning { background: #3a2a10; color: #ffd9a0; } }

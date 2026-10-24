@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Blocked</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <main>
+    <h1><span id="site">This site</span> is blocked by your family's AI rules</h1>
+    <p id="why"></p>
+
+    <p class="actions">
+      <button id="askButton">Ask for permission</button>
+      <button id="back">←Go back</button>
+    </p>
+
+    <form id="askForm" hidden>
+      <p><textarea id="reason" maxlength="300" rows="3" placeholder="Why do you need it?" aria-label="Why do you need it?" required></textarea></p>
+      <p>
+        <select id="minutes" aria-label="How long">
+          <option value="15">15 minutes</option>
+          <option value="30" selected>30 minutes</option>
+          <option value="60">1 hour</option>
+        </select>
+        <button type="submit" id="send">Send</button>
+      </p>
+      <p id="askError" hidden></p>
+    </form>
+
+    <p id="waiting" hidden><span id="statusText">Asked. Waiting for your parent…</span></p>
+  </main>
+  <script src="shared/resolver.js"></script>
+  <script src="blocked.js"></script>
+</body>
+</html>

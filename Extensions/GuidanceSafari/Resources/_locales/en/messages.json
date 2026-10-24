@@ -1,0 +1,10 @@
+{
+  "extension_name": {
+    "message": "Guidance",
+    "description": "The display name for the extension."
+  },
+  "extension_description": {
+    "message": "Applies your family's AI rules in Safari: blocks AI categories your parent turned off and guides homework prompts on chatbots.",
+    "description": "Description of what the extension does."
+  }
+}

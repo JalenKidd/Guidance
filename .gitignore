@@ -1,0 +1,15 @@
+# Dependencies / build output
+node_modules/
+Backend/functions/dist/
+Backend/functions/data/
+.env
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# Python
+__pycache__/
+
+.DS_Store

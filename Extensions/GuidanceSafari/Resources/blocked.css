@@ -1,0 +1,18 @@
+/* Plain page: browser-default background and controls, system text, just centered. */
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 20px;
+  font: 17px/1.45 -apple-system, system-ui, sans-serif;
+}
+main { max-width: 360px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+#site { word-break: break-all; }
+p { color: #6e6e73; margin: 0 0 20px; }
+@media (prefers-color-scheme: dark) { p { color: #98989d; } }
+#why:empty { display: none; }
+textarea { width: 100%; box-sizing: border-box; }
+.actions { display: flex; flex-direction: column; align-items: center; gap: 10px; }

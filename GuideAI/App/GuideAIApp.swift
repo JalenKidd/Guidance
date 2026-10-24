@@ -19,13 +19,13 @@ enum GuidanceAppearance: String, CaseIterable, Identifiable {
 @MainActor
 @main
 struct GuideAIApp: App {
-    @StateObject private var environment = AppEnvironment()
+    @StateObject private var store = FamilyStore()
     @AppStorage("guidance.appearance") private var appearance = GuidanceAppearance.system.rawValue
 
     var body: some Scene {
         WindowGroup {
-            AppRouter()
-                .environmentObject(environment)
+            RootView()
+                .environmentObject(store)
                 .preferredColorScheme(preferredColorScheme)
         }
     }

@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env --import tsx --watch src/index.ts",
-    "start": "node --env-file=.env dist/index.js",
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "build": "tsc",
     "test": "node --import tsx --test src/*.test.ts"
   },
   "engines": {
-    "node": ">=20.6"
+    "node": ">=22.9"
   },
   "dependencies": {
     "express": "^4.21.2",

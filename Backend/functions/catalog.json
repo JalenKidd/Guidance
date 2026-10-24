@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "chatbots",
+      "name": "Chatbots (LLMs)",
+      "description": "General AI assistants like ChatGPT, Claude and Gemini. Guided mode checks each prompt against your rules.",
+      "icon": "bubble.left.and.bubble.right.fill",
+      "supportsGuided": true,
+      "defaultState": "guided",
+      "domains": [
+        "chatgpt.com",
+        "chat.openai.com",
+        "claude.ai",
+        "gemini.google.com",
+        "copilot.microsoft.com",
+        "perplexity.ai",
+        "meta.ai",
+        "grok.com",
+        "chat.deepseek.com",
+        "poe.com",
+        "chat.mistral.ai",
+        "pi.ai"
+      ]
+    },
+    {
+      "id": "essay",
+      "name": "Essay & writing AI",
+      "description": "Tools that write, rewrite or paraphrase essays and assignments.",
+      "icon": "doc.text.fill",
+      "supportsGuided": false,
+      "defaultState": "block",
+      "domains": [
+        "quillbot.com",
+        "jasper.ai",
+        "copy.ai",
+        "writesonic.com",
+        "rytr.me",
+        "hix.ai",
+        "wordtune.com",
+        "textcortex.com"
+      ]
+    },
+    {
+      "id": "humanizers",
+      "name": "AI humanizers",
+      "description": "Tools built to disguise AI-written text from teachers and AI detectors.",
+      "icon": "theatermasks.fill",
+      "supportsGuided": false,
+      "defaultState": "block",
+      "domains": [
+        "undetectable.ai",
+        "stealthwriter.ai",
+        "phrasly.ai",
+        "netus.ai"
+      ]
+    },
+    {
+      "id": "math",
+      "name": "Math solvers",
+      "description": "Apps and sites that solve math problems from a photo or typed question.",
+      "icon": "function",
+      "supportsGuided": false,
+      "defaultState": "block",
+      "domains": [
+        "photomath.com",
+        "mathway.com",
+        "symbolab.com",
+        "gauthmath.com",
+        "cymath.com",
+        "mathpapa.com"
+      ]
+    },
+    {
+      "id": "homework",
+      "name": "Homework answer sites",
+      "description": "Sites that hand out answers and solutions to assignments.",
+      "icon": "checklist",
+      "supportsGuided": false,
+      "defaultState": "block",
+      "domains": [
+        "chegg.com",
+        "brainly.com",
+        "coursehero.com",
+        "studocu.com",
+        "numerade.com"
+      ]
+    },
+    {
+      "id": "companions",
+      "name": "AI companions",
+      "description": "Role-play and \"AI friend\" chat apps.",
+      "icon": "person.2.fill",
+      "supportsGuided": false,
+      "defaultState": "block",
+      "domains": [
+        "character.ai",
+        "replika.com",
+        "janitorai.com",
+        "talkie-ai.com"
+      ]
+    },
+    {
+      "id": "image",
+      "name": "Image & video AI",
+      "description": "Tools that generate pictures and videos.",
+      "icon": "photo.fill",
+      "supportsGuided": false,
+      "defaultState": "allow",
+      "domains": [
+        "midjourney.com",
+        "ideogram.ai",
+        "leonardo.ai",
+        "runwayml.com",
+        "firefly.adobe.com",
+        "krea.ai"
+      ]
+    },
+    {
+      "id": "education",
+      "name": "Learning-focused AI",
+      "description": "AI tutors designed to teach instead of handing out answers.",
+      "icon": "graduationcap.fill",
+      "supportsGuided": false,
+      "defaultState": "allow",
+      "domains": [
+        "khanmigo.ai",
+        "khanacademy.org"
+      ]
+    }
+  ]
+}

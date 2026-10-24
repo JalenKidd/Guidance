@@ -76,6 +76,10 @@ def main() -> None:
             ".plist": "text.plist.xml",
             ".entitlements": "text.plist.entitlements",
             ".json": "text.json",
+            ".js": "sourcecode.javascript",
+            ".html": "text.html",
+            ".css": "text.css",
+            ".png": "image.png",
         }.get(ext, "file")
 
     # Groups
@@ -111,6 +115,25 @@ def main() -> None:
     tests_refs = [file_ref(p) for p in test_swift]
     pbx.objects[tests_group]["children"] = tests_refs
 
+    # Safari Web Extension: the free-team way to enforce AI category rules.
+    # Everything inside Resources/ is copied to the root of the .appex (a top-level
+    # "Resources" directory would make iOS treat it as a macOS-style bundle).
+    safari_folder = ROOT / "Extensions/GuidanceSafari"
+    safari_group = pbx.add("PBXGroup", children=[], name="GuidanceSafari", sourceTree="<group>")
+    pbx.objects[ext_group]["children"].append(safari_group)
+    safari_swift_refs = [file_ref(p) for p in swift_files(safari_folder)]
+    safari_resource_refs = []
+    for item in sorted((safari_folder / "Resources").iterdir()):
+        if item.name.startswith("."):
+            continue
+        if item.is_dir():
+            ref = pbx.add("PBXFileReference", lastKnownFileType="folder", path=item.relative_to(ROOT).as_posix(), name=item.name, sourceTree="SOURCE_ROOT")
+        else:
+            ref = file_ref(item)
+        safari_resource_refs.append(ref)
+    resources_group = pbx.add("PBXGroup", children=safari_resource_refs, name="Resources", sourceTree="<group>")
+    pbx.objects[safari_group]["children"] = safari_swift_refs + [resources_group, file_ref(safari_folder / "Info.plist")]
+
     # Products
     app_product = pbx.add("PBXFileReference", explicitFileType="wrapper.application", includeInIndex=0, path="GuideAI.app", sourceTree="BUILT_PRODUCTS_DIR")
     demo_product = pbx.add("PBXFileReference", explicitFileType="wrapper.application", includeInIndex=0, path="GuideAIDemo.app", sourceTree="BUILT_PRODUCTS_DIR")
@@ -129,6 +152,14 @@ def main() -> None:
         ext_products[name] = pr
         pbx.objects[products_group]["children"].append(pr)
 
+    safari_product = pbx.add(
+        "PBXFileReference",
+        explicitFileType="wrapper.app-extension",
+        includeInIndex=0,
+        path="GuidanceSafari.appex",
+        sourceTree="BUILT_PRODUCTS_DIR",
+    )
+    pbx.objects[products_group]["children"].append(safari_product)
     pbx.objects[products_group]["children"].append(test_product)
 
     # Build phases helper
@@ -238,6 +269,31 @@ def main() -> None:
         ]
     )
     demo_resources = resources_phase([assets_ref])
+
+    safari_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
+    safari_target = pbx.add(
+        "PBXNativeTarget",
+        name="GuidanceSafari",
+        productName="GuidanceSafari",
+        productReference=safari_product,
+        productType="com.apple.product-type.app-extension",
+        buildConfigurationList=safari_cfg_list,
+        buildPhases=[
+            sources_phase(safari_swift_refs),
+            frameworks_phase(["SafariServices.framework"]),
+            resources_phase(safari_resource_refs),
+        ],
+        dependencies=[],
+    )
+    demo_embed_phase = pbx.add(
+        "PBXCopyFilesBuildPhase",
+        buildActionMask=2147483647,
+        dstPath="",
+        dstSubfolderSpec=13,
+        files=[pbx.add("PBXBuildFile", fileRef=safari_product, settings={"ATTRIBUTES": ["RemoveHeadersOnCopy"]})],
+        name="Embed Foundation Extensions",
+        runOnlyForDeploymentPostprocessing=0,
+    )
     demo_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
     demo_target = pbx.add(
         "PBXNativeTarget",
@@ -246,8 +302,8 @@ def main() -> None:
         productReference=demo_product,
         productType="com.apple.product-type.application",
         buildConfigurationList=demo_cfg_list,
-        buildPhases=[demo_sources, demo_frameworks, demo_resources],
-        dependencies=[],
+        buildPhases=[demo_sources, demo_frameworks, demo_resources, demo_embed_phase],
+        dependencies=[pbx.add("PBXTargetDependency", target=safari_target, targetProxy=pbx.add("PBXContainerItemProxy", containerPortal="", proxyType=1, remoteGlobalIDString=safari_target, remoteInfo="GuidanceSafari"))],
     )
 
     # Fix container portal on proxies - set after project created
@@ -264,7 +320,7 @@ def main() -> None:
         productRefGroup=products_group,
         projectDirPath="",
         projectRoot="",
-        targets=[app_target, demo_target] + [ext_native[n] for n in ext_targets],
+        targets=[app_target, demo_target, safari_target] + [ext_native[n] for n in ext_targets],
     )
 
     for obj in pbx.objects.values():
@@ -366,8 +422,21 @@ def main() -> None:
             "PRODUCT_NAME": "GuideAIDemo",
             "SWIFT_EMIT_LOC_STRINGS": "YES",
         },
-        debug_overrides={"SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG GUIDEAI_DEMO"},
-        release_overrides={"SWIFT_ACTIVE_COMPILATION_CONDITIONS": "GUIDEAI_DEMO"},
+    )
+
+    add_cfgs(
+        safari_cfg_list,
+        {
+            "CURRENT_PROJECT_VERSION": "1",
+            "DEVELOPMENT_TEAM": "276MB976U5",
+            "GENERATE_INFOPLIST_FILE": "NO",
+            "INFOPLIST_FILE": "Extensions/GuidanceSafari/Info.plist",
+            "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks",
+            "MARKETING_VERSION": "1.0",
+            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai.demo.Safari",
+            "PRODUCT_NAME": "$(TARGET_NAME)",
+            "SKIP_INSTALL": "YES",
+        },
     )
 
     for name, meta in ext_target_ids.items():

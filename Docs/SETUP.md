@@ -1,133 +1,96 @@
-# Guidance — Development Device Setup
+# Guidance — Setup
 
-The full `GuideAI` target uses **real** Apple Family Controls, `FamilyActivityPicker`, and `ManagedSettings` shielding. Screen Time behavior must be verified on a **physical iPhone** with Developer Mode enabled. The Simulator is fine for UI and chat development only.
-
-The project also includes a separate internal `GuideAI Demo` target for the competition video. It installs with the current free Personal Team and demonstrates the finished parent/child flow without claiming that its preview screen is a live Apple shield. The installed app is named **Guidance**.
+Everything here works with a **free Apple account** (Personal Team). Plan on about 15 minutes.
 
 ## Prerequisites
 
-- macOS with **Xcode** (current SDK installed)
-- Free Apple Developer account for `GuideAI Demo`
-- Active Apple Developer Program membership for the full `GuideAI` Family Controls target
-- Physical iPhone on iOS 17+ (recommended: latest iOS your Xcode supports)
-- Node.js 20.6+ for the assistant backend (optional for Screen Time testing; required for AI chat)
+- Mac with Xcode (current SDK)
+- Node.js **22.9+**
+- An iPhone on iOS 17+ for the full experience. The Simulator is fine for the parent app and for testing the extension in Simulator Safari.
 
-## 1. Open the project
+## 1. Start the server
 
 ```bash
-open GuideAI.xcodeproj
-```
-
-If `project.pbxproj` is ever corrupted, regenerate it:
-
-```bash
-python3 Scripts/generate_xcodeproj.py
-```
-
-## Fastest path: run the installable video demo
-
-1. In Xcode's top toolbar, choose the **GuideAI Demo** scheme (not `GuideAI`)
-2. Choose the connected iPhone 11
-3. Press **Run**
-4. If iPhone blocks the first launch, open **Settings → General → VPN & Device Management → Developer App**, choose the Apple ID, and tap **Trust**
-5. Launch again from Xcode
-
-The demo scheme is already assigned to Personal Team `276MB976U5`. It contains no Family Controls or App Group entitlement and does not build the three Screen Time extensions, which is why Apple allows the free team to sign it.
-
-Use the **Preview a blocked AI tool** card in Child Mode to record the redirect portion of the video.
-
-## Full Family Controls build: signing and capabilities
-
-For **each** target — `GuideAI`, `GuideAIShieldConfiguration`, `GuideAIShieldAction`, `GuideAIDeviceActivityMonitor`, and `GuideAITests` if you run tests:
-
-1. Select the target → **Signing & Capabilities**
-2. Choose your **Team**
-3. Enable **Automatically manage signing**
-4. Use bundle ID prefix `com.cac.guideai` (or your own; if you change it, update `AppConfig.appGroupIdentifier` to `group.<your-bundle>.shared`)
-
-### Main app (`GuideAI`)
-
-- Capability: **Family Controls**
-- Capability: **App Groups** → `group.com.cac.guideai.shared` (must match `GuideAI/GuideAI.entitlements`)
-
-### Each extension
-
-- Capability: **Family Controls**
-- Same **App Group** as the main app
-
-Entitlement files are already in the repo:
-
-- `GuideAI/GuideAI.entitlements`
-- `Extensions/*/Guide*.entitlements`
-
-**Note:** Family Controls development profiles require an Apple Developer Program team. A free Personal Team cannot provision this capability. If authorization fails on device, confirm the paid team, capability, and refreshed provisioning profiles.
-
-## 3. Embed extensions
-
-The main app target should **Embed Foundation Extensions** for:
-
-- `GuideAIShieldConfiguration.appex`
-- `GuideAIShieldAction.appex`
-- `GuideAIDeviceActivityMonitor.appex`
-
-The generated Xcode project includes this embed phase. After regenerating the project, confirm in **Build Phases → Embed Foundation Extensions**.
-
-## 4. Run on a physical iPhone
-
-1. Connect the iPhone via USB or network debugging
-2. On the iPhone: **Settings → Privacy & Security → Developer Mode** (enable if prompted)
-3. Trust the developer certificate on first launch
-4. In Xcode, select your iPhone as the run destination
-5. **Product → Run**
-
-## 5. In-app beta flow (device)
-
-1. Complete onboarding (4 pages)
-2. Tap **Enable Parental Controls** → approve Apple’s **individual** authorization (demo model; not full Family Sharing)
-3. In **Parent Dashboard**: **Choose Apps & Websites** → pick AI apps/sites in `FamilyActivityPicker`
-4. Enable **Block External AI** in Parent Settings
-5. Set **Learning Mode**, daily limit, optional custom instructions
-6. Switch to **Child Mode** (lock icon returns to Parent Mode)
-7. Open a selected external AI app or site → Apple’s shield should appear (custom copy from the Shield Configuration extension)
-8. Use **Ask Guidance** for the controlled assistant
-
-## 6. Assistant backend
-
-From `Backend/functions`:
-
-```bash
-cp .env.example .env
-# Edit .env: set OPENAI_API_KEY and OPENAI_MODEL
+cd Backend/functions
 npm install
 npm run build
 npm start
 ```
 
-`npm start` loads `Backend/functions/.env` automatically. Do not commit that file.
+You should see `Guidance backend listening on 0.0.0.0:8080`. Check it with `curl http://localhost:8080/health`.
 
-Default URL in Debug: `http://127.0.0.1:8080`.
+**Optional AI judge:** copy `.env.example` to `.env` and set `OPENAI_API_KEY` and `OPENAI_MODEL`. Without them, prompt checks use Guidance's built-in homework-offloading rules, which cover the common cases ("write my essay", "solve these for me", "just give me the answer", "humanize this"). With them, prompts the rules don't catch are also judged by the AI.
 
-For a **physical iPhone**, the phone cannot reach `127.0.0.1` on your Mac unless you use your Mac’s LAN IP:
+Data is saved in `Backend/functions/data/store.json` (git-ignored).
 
-1. Find your Mac IP (e.g. `192.168.1.10`)
-2. In Xcode: **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**
-   - Add `GUIDEAI_API_BASE_URL` = `http://192.168.1.10:8080`
-3. Ensure local network access is allowed (Info.plist already includes local networking for development)
+## 2. Run the app
 
-## Simulator limitations
+```bash
+open GuideAI.xcodeproj
+```
 
-| Feature | Simulator |
-|--------|-----------|
-| Family Controls authorization | Unreliable / unavailable |
-| `FamilyActivityPicker` | Limited |
-| Real app/site shields | **No** |
-| Parent biometrics | Simulated only |
-| Controlled AI chat | Yes (with backend) |
-| Usage limits | Yes |
+1. In the toolbar, choose the **GuideAI Demo** scheme. It builds the app plus the Guidance Safari extension, and is signed with the free Personal Team.
+2. Choose your iPhone or a simulator → **Run**.
+3. On iPhone, if the first launch is blocked: **Settings → General → VPN & Device Management → Developer App → Trust**, then Run again.
 
-## 7. Debug demo tools
+> The `GuideAI` scheme is the older Family Controls build, which needs a paid Apple Developer Program team. You don't need it.
 
-In **Debug** builds, Parent Dashboard includes **Demo Tools**: authorization status, token counts, reapply/clear shields, backend health check, reset onboarding/usage.
+If the project ever looks broken, regenerate it (this adds new source files automatically):
+
+```bash
+python3 Scripts/generate_xcodeproj.py
+```
+
+## 3. Sign in or create a family (parent)
+
+**Demo accounts:** on the welcome screen, choose **Sign in** and use one of the made-up accounts with password `guidance123`: MarvesPaztanes@gmail.com (the original family), JalenPaztanes@gmail.com, MiguelPaztanes@gmail.com or AlaniPaztanes@gmail.com. Tap **Demo accounts** to fill in the email. Details are in `UPDATE_README.md`.
+
+Or choose **New family**:
+
+1. Open Guidance, type your kid's name → **Create family**.
+2. **On an iPhone:** open **Server address** first and enter your Mac's Wi-Fi address, e.g. `http://192.168.1.10:8080` (find it with `ipconfig getifaddr en0`). Tap **Test connection**. In the Simulator you can leave it empty.
+3. The **Rules** tab shows every AI category. Defaults: Chatbots = Guided, Essay / Humanizers / Math / Homework / Companions = Block, Image and Learning-focused AI = Allow.
+
+The app locks whenever it goes to the background. Unlocking needs Face ID or the passcode, so a kid who opens it sees only "AI is guided on this phone."
+
+## 4. Set up the kid's phone (Safari extension)
+
+Do this on the phone the kid uses. For a demo with one phone, that's the same phone.
+
+1. **Turn on the extension:** Settings → Apps → Safari → Extensions → **Guidance** → on. Under permissions, set **All Websites → Allow**. This matters: with only "Ask" or one-day permissions, sites won't be blocked. The extension popup shows a warning when access is missing.
+2. **Pair it:** in Safari, open any website, tap the page menu (left of the address bar) → **Guidance**. Enter the 6-character code from the app's **Setup** tab. If the server isn't on this device, open **Server address** and enter the same address as in step 3.
+3. **Close the gaps with Screen Time** (free, built into iOS):
+   - Settings → Screen Time → **Lock Screen Time Settings** (set a passcode the kid doesn't know)
+   - **App Limits → Add Limit**: pick the ChatGPT, Gemini, Claude and Copilot apps and any browsers other than Safari, set to 1 minute (the shortest iOS allows), and turn on Block at End of Limit
+   - **Content & Privacy Restrictions → iTunes & App Store Purchases → Deleting Apps → Don't Allow**
+
+Check it: open `quillbot.com` in Safari. You should get the Guidance blocked page.
+
+## 5. Try the rules
+
+| Try this | Expected |
+|---|---|
+| Open `quillbot.com` | Blocked page ("Essay & writing AI") |
+| Rules → Essay & writing AI → **Allow**, wait about 15 seconds (an open blocked page reopens the site by itself) | Site loads |
+| On chatgpt.com, send "write my 5 paragraph essay on the Civil War" | Prompt is stopped; "Ask this instead" offers an outline prompt |
+| Send "Explain what caused the Civil War" | Goes through with "(Parent rules from Guidance: …)" attached |
+| Rules → **Turn off all AI** | chatgpt.com and every other AI site show the blocked page |
+| Schedules → + → Bedtime, set it to start a few minutes from now | AI is blocked when it starts |
+| Homework rules → turn **Stop homework offloading** off (leave **Hide finished answers** on). On chatgpt.com, send "write a 5 paragraph essay on the Civil War for my class" | ChatGPT writes it, but the answer stays blurred and a panel shows hints instead |
+| Send "how do i hide a vape from my parents" | Goes through normally; a Vaping alert appears in the app's Activity tab (badge on the tab) |
+| On the blocked quillbot page, tap **Ask for permission**, give a reason, send | Request appears in Activity → **Approve** → the page opens quillbot within a few seconds |
+| Activity tab | Shows requests, safety alerts, blocked sites, stopped prompts, hidden answers, last check-in |
+
+## How rules are decided
+
+From strongest to weakest:
+
+1. **Turn off all AI** (or a schedule with "Turn off all AI") → every AI site is blocked
+2. **Site exception** (Always allow / Always block for one site)
+3. **Active schedule** (when schedules overlap, the stricter setting wins)
+4. **Category setting**
+
+Sites not in the catalog are untouched unless you add an exception for them.
 
 ## Troubleshooting
 

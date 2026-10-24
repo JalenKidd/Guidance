@@ -1,39 +1,28 @@
-import express from "express";
-import { handleChat } from "./chat.js";
-import { chatRequestSchema } from "./validation.js";
+import { fileURLToPath } from "node:url";
+import { DEMO_ACCOUNTS, seedDemoAccounts } from "./accounts.js";
+import { createApp } from "./app.js";
+import { loadCatalog } from "./catalog.js";
+import { openAIJudge, openAIResponseJudge } from "./classifier.js";
+import { createOpenAIClient } from "./openai.js";
+import { openAIModerator } from "./safety.js";
+import { Store } from "./store.js";
 
-const app = express();
-app.use(express.json({ limit: "256kb" }));
+const catalog = loadCatalog();
+const store = new Store(process.env.DATA_FILE ?? fileURLToPath(new URL("../data/store.json", import.meta.url)));
+seedDemoAccounts(store);
+const judge = openAIJudge();
+const responseJudge = openAIResponseJudge();
+// The moderation endpoint is free and only needs the API key.
+const moderator = process.env.OPENAI_API_KEY ? openAIModerator(createOpenAIClient()) : undefined;
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
-app.post("/chat", async (req, res) => {
-  const parsed = chatRequestSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid request." });
-  }
-
-  const last = parsed.data.conversation[parsed.data.conversation.length - 1];
-  if (last.role !== "user") {
-    return res.status(400).json({ error: "Last message must be from the user." });
-  }
-
-  try {
-    const result = await handleChat(parsed.data);
-    res.json(result);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Assistant error";
-    if (message.includes("OPENAI")) {
-      return res.status(503).json({ error: "Assistant service is not configured." });
-    }
-    console.error("Chat error:", message);
-    res.status(502).json({ error: "Could not generate a response. Try again." });
-  }
-});
+const app = createApp({ store, catalog, judge, responseJudge, moderator });
 
 const port = Number(process.env.PORT ?? 8080);
-app.listen(port, () => {
-  console.log(`Guidance backend listening on port ${port}`);
+const host = process.env.HOST ?? "0.0.0.0";
+app.listen(port, host, () => {
+  console.log(`Guidance backend listening on ${host}:${port}`);
+  console.log(`Catalog v${catalog.version}: ${catalog.categories.length} categories`);
+  console.log(judge ? "AI prompt/answer judge: OpenAI" : "AI prompt/answer judge: off (set OPENAI_API_KEY and OPENAI_MODEL); using built-in rules");
+  console.log(moderator ? "Safety moderation: OpenAI + built-in rules" : "Safety moderation: built-in rules");
+  console.log(`Demo accounts: ${DEMO_ACCOUNTS.map((a) => a.email).join(", ")}`);
 });

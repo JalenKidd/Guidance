@@ -20,10 +20,6 @@ enum ParentAuthenticationError: LocalizedError {
 
 struct ParentAuthenticationService {
     func authenticate(reason: String = "Unlock parent settings") async throws {
-        #if GUIDEAI_DEMO
-        // Avoid a biometric interruption while recording the prototype flow.
-        return
-        #else
         let context = LAContext()
         context.localizedCancelTitle = "Cancel"
 
@@ -40,6 +36,5 @@ struct ParentAuthenticationService {
         if !success {
             throw ParentAuthenticationError.failed
         }
-        #endif
     }
 }

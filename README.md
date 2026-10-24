@@ -1,90 +1,73 @@
 # Guidance
 
-**Guidance** helps families control **how** children use artificial intelligence—not whether AI exists at all. Parents choose external AI apps and websites to restrict with Apple Screen Time APIs, set learning modes and daily limits, and give children a **controlled in-app assistant** whose behavior is enforced by a secure backend.
+**Guidance** lets parents decide **how** their kids use AI, instead of choosing between "anything goes" and "AI banned." Parents control AI **by category**, the way school filters like Linewize do: Chatbots, Essay & writing AI, Math solvers, Homework answer sites, AI humanizers and more. Each one is set to **Allow**, **Guided** or **Block**. There's also one **Turn off all AI** switch, plus schedules.
 
-Built for the **Congressional App Challenge** as a real development-device beta (not App Store distribution yet).
+On **Guided** chatbots (ChatGPT, Claude, Gemini and others), Guidance checks each prompt before it's sent. Prompts that try to offload homework ("write my essay", "solve these for me") are stopped, and the kid is offered a learning-style prompt instead. Allowed prompts carry the parent's own instructions to the AI.
 
-For teams waiting on Apple's paid Family Controls provisioning, the project includes an internal **GuideAI Demo** Xcode scheme that installs on a free Personal Team and previews the complete video flow. The internal `GuideAI` scheme remains the real Screen Time implementation. Both builds display the product name **Guidance**.
+Built for the **Congressional App Challenge**. It runs on a **free Apple account**: no paid Developer Program needed.
 
-## Problem
+> Coming from the earlier version with the built-in chatbot? Read **[UPDATE_README.md](UPDATE_README.md)**.
 
-Students can access powerful AI through many apps and websites. Parents often have only two options: unrestricted access or total prohibition—neither supports guided learning.
-
-## Solution
-
-1. Parent configures policy (mode, limits, custom instructions)
-2. Parent authorizes Family Controls (individual authorization for this beta)
-3. Parent selects external AI apps/sites in Apple’s `FamilyActivityPicker`
-4. When blocking is enabled, `ManagedSettings` shields those selections
-5. Child uses Guidance’s assistant; the backend applies Learning / Standard / Restricted behavior
-6. Daily approved-AI usage is tracked; limits block further assistant use until the next day
-
-**Important:** This MVP restricts **parent-selected** apps and websites. It does **not** block every AI service on the Internet.
-
-## Architecture
-
-See [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md).
+## How it works
 
 ```
-ParentalPolicy → ShieldManager / UsageTracker / AIService
-FamilyActivitySelection → ManagedSettingsStore → iOS shield
-Chat → Backend promptBuilder → OpenAI Responses API
+Parent app (Face ID) ──► Guidance server ◄── Safari extension on the kid's phone
+  categories, schedules,     rules, catalog,      • blocks AI sites in blocked categories
+  AI-off switch, exceptions  prompt checks,       • checks prompts on Guided chatbots
+                             activity             • reports what it blocked
 ```
 
-## Current beta features
+| Piece | Where | What it does |
+|---|---|---|
+| Parent console (iOS app) | `GuideAI/` | Kids, category settings, schedules, site exceptions, homework rules, activity, pairing |
+| Safari Web Extension | `Extensions/GuidanceSafari/` | Enforces the rules in Safari: blocks sites, checks Guided prompts |
+| Server | `Backend/functions/` | Stores families and rules, serves the AI-site catalog, judges prompts, collects activity |
+| AI-site catalog | `Backend/functions/catalog.json` | Categories and their domains. Add a site here and every phone picks it up. |
 
-- Onboarding with individual Family Controls authorization
-- Real `FamilyActivityPicker` and persistent selection (App Group)
-- Real `ManagedSettings` shield apply/clear with policy restore on launch
-- Custom Shield Configuration + Shield Action extensions
-- Parent Dashboard (mode, usage, external AI status)
-- Parent Mode gated by Face ID / Touch ID / device passcode
-- Child home + chat UI with mode badge and remaining time
-- Node/TypeScript backend; API key never in the iOS app
-- Daily usage limits with limit-reached UI
-- DEBUG demo tools
+Native AI apps (the ChatGPT app and others) and other browsers are closed off with iOS **Screen Time**, which is free and set up once in Settings. That keeps AI use in Safari, where Guidance applies the rules.
 
-## Technology stack
-
-| Layer | Stack |
-|-------|--------|
-| iOS | Swift, SwiftUI, async/await, MVVM-style services |
-| Screen Time | FamilyControls, ManagedSettings, ManagedSettingsUI, DeviceActivity, LocalAuthentication |
-| Backend | Node.js, TypeScript, Express, OpenAI JavaScript SDK (Responses API) |
-
-## Setup
-
-- **iOS device:** [Docs/SETUP.md](Docs/SETUP.md)
-- **Backend:** `Backend/functions` — copy `.env.example` to `.env`, `npm install`, `npm start`
-- **Demo script:** [Docs/DEMO.md](Docs/DEMO.md)
-- **Issues:** [Docs/TROUBLESHOOTING.md](Docs/TROUBLESHOOTING.md)
-
-Regenerate Xcode project if needed:
+## Quick start
 
 ```bash
-python3 Scripts/generate_xcodeproj.py
+# 1. Server
+cd Backend/functions
+npm install
+npm run build && npm start        # http://localhost:8080 (OpenAI key optional, see .env.example)
+
+# 2. App (from the repo root)
+open GuideAI.xcodeproj            # choose the "GuideAI Demo" scheme → Run
 ```
 
-## Physical device requirements
+Full steps, including the iPhone and Safari extension setup: **[Docs/SETUP.md](Docs/SETUP.md)**. Screenshots of every screen: **[Docs/pages](Docs/pages/README.md)**. Video script: **[Docs/DEMO.md](Docs/DEMO.md)**. Problems: **[Docs/TROUBLESHOOTING.md](Docs/TROUBLESHOOTING.md)**.
 
-Family Controls authorization, app/site picking, and shields require a **development-enabled iPhone**. Simulator is suitable for UI and chat-only work.
+## Tests
 
-## Known limitations
+```bash
+cd Backend/functions && npm test                 # rules, schedules, catalog, prompt checks, API
+xcodebuild test -project GuideAI.xcodeproj -scheme GuideAI \
+  -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
+```
 
-- Parent-selected blocking only (no global AI URL filter)
-- Individual authorization demo—not full Family Sharing parent/child pairing
-- Policy and usage stored locally (Firebase-ready architecture, not required for beta)
-- Device Activity monitor scaffolded; AI-free bedtime schedule not required for MVP
-- Child conversation text not exposed in parent analytics by default
+## Technology
 
-## Future roadmap
+| Layer | Stack |
+|---|---|
+| iOS app | Swift, SwiftUI, async/await, LocalAuthentication |
+| Enforcement | Safari Web Extension (Manifest V3, `declarativeNetRequest`, content scripts) |
+| Server | Node.js, TypeScript, Express, zod; optional OpenAI Responses API for prompt judging |
 
-- Family Sharing `.child` authorization and multi-device pairing
-- Cloud policy sync (Firebase)
-- Temporary “ask parent” approvals and schedules
-- Network Extension URL filtering for large-scale web coverage
-- Production privacy/consent review for minors
+## Known limits
 
-## License / competition
+- Rules apply in **Safari**. Native AI apps and other browsers have to be blocked with Screen Time, and a kid who knows the Screen Time passcode could undo that.
+- A kid could turn the extension off in Settings. The parent's Activity tab shows when the phone last checked in.
+- Prompt checks rely on each chatbot's page layout. When a site redesigns, its selectors in `content/adapters.js` may need updating.
+- The demo server stores data in a JSON file and has no accounts beyond a family token.
+
+## Roadmap
+
+- Apple **Family Controls** (paid Developer Program) to block native apps and lock settings
+- Cloud database and a parent app on the parent's own phone
+- Teacher/school mode, like Linewize Classwize
+- "Ask a parent" requests from the blocked page
 
 Prototype for Congressional App Challenge demonstration. Not legal advice regarding COPPA or other child-privacy regulations.

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guidance</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="images/icon-48.png" alt="">
+    <div>
+      <div class="name">Guidance</div>
+      <div class="sub"><span id="subtitle">Not paired yet</span><span class="dot" id="dot" hidden></span></div>
+    </div>
+  </header>
+
+  <section id="access" class="warning" hidden>
+    <strong>Guidance can't see websites yet.</strong>
+    <p>Without access to all websites, AI sites won't be blocked or guided.</p>
+    <button id="grantAccess">Allow on all websites</button>
+    <p class="small">If nothing happens: Settings → Apps → Safari → Extensions → Guidance → All Websites → Allow.</p>
+  </section>
+
+  <section id="paired" hidden>
+    <dl>
+      <dt>Last update</dt><dd id="lastSync">–</dd>
+    </dl>
+    <p class="error" id="syncError" hidden></p>
+    <button id="showPair">Pair with a different code</button>
+  </section>
+
+  <form id="pairForm" hidden>
+    <p>Open the Guidance app, choose your kid, and enter the 6-character pairing code shown there.</p>
+    <label>Pairing code
+      <input id="code" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="ABC234" required>
+    </label>
+    <details>
+      <summary>Server address</summary>
+      <label>Guidance server
+        <input id="server" type="url" placeholder="http://192.168.1.10:8080">
+      </label>
+    </details>
+    <p class="error" id="pairError" hidden></p>
+    <button type="submit" id="pairButton">Pair this phone</button>
+  </form>
+
+  <script src="popup.js"></script>
+</body>
+</html>
