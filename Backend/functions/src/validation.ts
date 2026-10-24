@@ -29,7 +29,8 @@ export const scheduleSchema = z.object({
 export const kidPolicySchema = z.object({
   masterAIOff: z.boolean().default(false),
   categories: z.record(categoryIdSchema, categoryStateSchema).default({}),
-  siteOverrides: z.record(domainSchema, z.enum(["allow", "block"])).default({}),
+  /** "guided" only takes effect on sites whose category supports Guided (chatbots). */
+  siteOverrides: z.record(domainSchema, z.enum(["allow", "guided", "block"])).default({}),
   schedules: z.array(scheduleSchema).max(20).default([]),
   guidedRules: z
     .object({
@@ -39,6 +40,10 @@ export const kidPolicySchema = z.object({
       hideFinishedAnswers: z.boolean().default(true),
       globalInstructions: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
     })
+    .default({}),
+  /** Extra Guided instructions for one catalog app, keyed by app id. */
+  appInstructions: z
+    .record(categoryIdSchema, z.array(z.string().trim().min(1).max(300)).max(5))
     .default({}),
   /** Approved "Ask a parent" requests. They beat every other rule until they expire. */
   temporaryAllows: z

@@ -51,7 +51,7 @@ extension RootView {
 }
 
 private enum ParentTab: String, Hashable {
-    case rules
+    case home
     case schedules
     case activity
     case setup
@@ -63,14 +63,14 @@ private struct ParentTabView: View {
         #if DEBUG
         if let name = DebugLaunch.value("-tab"), let tab = ParentTab(rawValue: name) { return tab }
         #endif
-        return .rules
+        return .home
     }()
 
     var body: some View {
         TabView(selection: $tab) {
-            RulesView()
-                .tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
-                .tag(ParentTab.rules)
+            HomeView()
+                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tag(ParentTab.home)
 
             SchedulesView()
                 .tabItem { Label("Schedules", systemImage: "clock.fill") }

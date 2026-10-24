@@ -577,3 +577,28 @@ private func deliveryChangeID(_ request: URLRequest) throws -> String {
     let body = try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any]
     return try XCTUnwrap(body?["changeId"] as? String)
 }
+
+final class CatalogAppTests: XCTestCase {
+    func testAppsDecodeAndLeftoverDomainsBecomeTiles() throws {
+        let json = """
+        {"id":"chatbots","name":"Chatbots","description":"","icon":"","supportsGuided":true,"defaultState":"guided",
+         "domains":["chatgpt.com","chat.openai.com","pi.ai"],
+         "apps":[{"id":"chatgpt","name":"ChatGPT","domains":["chatgpt.com","chat.openai.com"],"audience":"13+","quirks":["Memory"]}]}
+        """
+        let category = try JSONDecoder().decode(AICategory.self, from: Data(json.utf8))
+        XCTAssertEqual(category.apps.map(\.id), ["chatgpt", "pi.ai"])
+        XCTAssertEqual(category.apps[0].primaryDomain, "chatgpt.com")
+    }
+
+    func testOlderCatalogWithoutAppsShowsEveryDomain() {
+        XCTAssertEqual(catalog.categories[0].apps.map(\.name), ["chatgpt.com"])
+    }
+
+    func testPolicyDecodesGuidedOverridesAndAppInstructions() throws {
+        let json = #"{"siteOverrides":{"claude.ai":"guided"},"appInstructions":{"chatgpt":["Only coding"]}}"#
+        let policy = try JSONDecoder().decode(KidPolicy.self, from: Data(json.utf8))
+        XCTAssertEqual(policy.siteOverrides["claude.ai"], .guided)
+        XCTAssertEqual(policy.appInstructions["chatgpt"], ["Only coding"])
+        XCTAssertEqual(try JSONDecoder().decode(KidPolicy.self, from: Data("{}".utf8)).appInstructions, [:])
+    }
+}

@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { passwordMatches } from "./accounts.js";
-import { defaultPolicy, type Catalog } from "./catalog.js";
+import { appForSite, defaultPolicy, type Catalog } from "./catalog.js";
 import { checkPrompt, checkResponse, type AIJudge, type ResponseJudge } from "./classifier.js";
 import { safetyTopicsFor, topicInfo, type SafetyModerator } from "./safety.js";
 import type { ActivityEvent, Family, Kid, Store } from "./store.js";
@@ -73,6 +73,14 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
 
   const categoryFor = (site: string) =>
     catalog.categories.find((c) => c.domains.some((d) => site === d || site.endsWith(`.${d}`)))?.id;
+
+  /** The kid's Guided rules plus any instructions the parent set for this one app. */
+  const guidedRulesFor = (policy: KidPolicy, site: string) => {
+    const app = appForSite(catalog, site);
+    const extra = (app && policy.appInstructions?.[app.id]) || [];
+    if (!extra.length) return policy.guidedRules;
+    return { ...policy.guidedRules, globalInstructions: [...policy.guidedRules.globalInstructions, ...extra] };
+  };
 
   const requireParent = (req: Request, res: Response, next: NextFunction) => {
     const family = store.family(req.params.familyId);
@@ -266,7 +274,7 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
 
     const [decision, topics] = await Promise.all([
       mode === "guided"
-        ? checkPrompt(prompt, policy.guidedRules, judge)
+        ? checkPrompt(prompt, guidedRulesFor(policy, site), judge)
         : Promise.resolve({ action: "allow" as const, reason: "", instructions: "", source: "rules" as const }),
       safetyTopicsFor(prompt, moderator),
     ]);
@@ -300,7 +308,7 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
     if (!parsed.success) return res.status(400).json({ error: "Invalid request." });
     const kid = res.locals.kid as Kid;
     const { site, prompt, response } = parsed.data;
-    const decision = await checkResponse(prompt, response, currentPolicy(kid).guidedRules, responseJudge);
+    const decision = await checkResponse(prompt, response, guidedRulesFor(currentPolicy(kid), site), responseJudge);
     if (decision.action === "hide") {
       store.addEvents([
         { kidId: kid.id, type: "answer_hidden", domain: site, categoryId: categoryFor(site), reason: decision.reason, at: new Date().toISOString() },

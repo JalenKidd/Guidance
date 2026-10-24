@@ -47,7 +47,7 @@ struct CategoryDetailView: View {
 
             Section {
                 ForEach(category.domains, id: \.self) { domain in
-                    SiteRow(domain: domain, categoryState: state)
+                    SiteRow(domain: domain, categoryState: state, supportsGuided: category.supportsGuided)
                 }
             } header: {
                 Text("Sites in this category")
@@ -82,6 +82,7 @@ private struct SiteRow: View {
     let domain: String
     /// nil when kids have different category settings.
     let categoryState: CategoryState?
+    let supportsGuided: Bool
 
     var body: some View {
         // Outer nil: kids differ. Inner nil: no exception, the site follows its category.
@@ -94,7 +95,7 @@ private struct SiteRow: View {
             } label: {
                 CheckedLabel(title: "Follow category" + (categoryState.map { " (\($0.label))" } ?? ""), checked: shared != nil && override == nil)
             }
-            ForEach(SiteOverride.allCases) { option in
+            ForEach(SiteOverride.options(supportsGuided: supportsGuided)) { option in
                 Button {
                     set(option)
                 } label: {
@@ -111,7 +112,7 @@ private struct SiteRow: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 } else if let override {
-                    StateBadge(state: override == .allow ? .allow : .block)
+                    StateBadge(state: override.categoryState)
                     Text("exception")
                         .font(.caption2)
                         .foregroundStyle(.secondary)

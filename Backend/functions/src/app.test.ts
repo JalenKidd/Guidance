@@ -70,6 +70,26 @@ test("parent → kid → paired extension → check → activity", async () => {
   assert.ok(activity.body.lastHeartbeat);
 });
 
+test("app instructions only reach that app's Guided checks", async () => {
+  const { familyId, parentToken } = (await call("POST", "/families")).body;
+  const kid = (await call("POST", `/families/${familyId}/kids`, { name: "Ari" }, parentToken)).body;
+  const policy = {
+    ...kid.policy,
+    siteOverrides: { "claude.ai": "guided" },
+    appInstructions: { chatgpt: ["Only help with coding questions."] },
+  };
+  const put = await call("PUT", `/families/${familyId}/kids/${kid.id}/policy`, policy, parentToken);
+  assert.equal(put.status, 200);
+  assert.equal(put.body.policy.siteOverrides["claude.ai"], "guided");
+  const device = (await call("POST", "/pair", { code: kid.pairingCode })).body.deviceToken;
+
+  const chatgpt = await call("POST", "/device/check", { site: "www.chatgpt.com", prompt: "how do loops work?" }, device);
+  assert.equal(chatgpt.body.action, "allow");
+  assert.match(chatgpt.body.instructions, /Only help with coding questions\./);
+  const claude = await call("POST", "/device/check", { site: "claude.ai", prompt: "how do loops work?" }, device);
+  assert.doesNotMatch(claude.body.instructions, /Only help with coding/);
+});
+
 test("the parent's name reaches the kid's extension", async () => {
   const { body: family } = await call("POST", "/families", { parentName: "Maria" });
   const kid = (await call("POST", `/families/${family.familyId}/kids`, { name: "Leo" }, family.parentToken)).body;
@@ -381,7 +401,7 @@ test("older stored kids migrate to an unconfirmed first revision and delivery su
     assert.equal(kid.policyAppliedAt, null);
     assert.equal(JSON.parse(readFileSync(path, "utf8")).families.family.kids[0].policyRevision, 1);
     store.recordPolicyApplied(kid, 1);
-    const defaults = { masterAIOff: false, categories: {}, siteOverrides: {}, schedules: [], guidedRules: { blockHomeworkOffloading: true, requireAttemptFirst: true, hideFinishedAnswers: true, globalInstructions: [] }, temporaryAllows: [] };
+    const defaults = { masterAIOff: false, categories: {}, siteOverrides: {}, schedules: [], guidedRules: { blockHomeworkOffloading: true, requireAttemptFirst: true, hideFinishedAnswers: true, globalInstructions: [] }, temporaryAllows: [], appInstructions: {} };
     store.updatePolicy(kid, defaults, "migration-defaults");
     assert.equal(kid.policyRevision, 1, "missing older fields normalize before comparing");
     store.updatePolicy(kid, { ...defaults, masterAIOff: true }, "persisted-edit");

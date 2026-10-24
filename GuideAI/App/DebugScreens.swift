@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Debug-only launch arguments for taking screenshots of every screen without tapping:
 ///   -unlocked             skip the Face ID lock
-///   -tab <rules|schedules|activity|setup>
+///   -tab <home|schedules|activity|setup>
 ///   -screen <name>        open one screen directly (see `DebugScreen`)
 enum DebugLaunch {
     static let arguments = ProcessInfo.processInfo.arguments
@@ -30,6 +30,8 @@ struct DebugScreen: View {
             LockView()
         case "category":
             NavigationStack { CategoryDetailView(categoryID: DebugLaunch.value("-category") ?? "essay") }
+        case "app":
+            NavigationStack { AppDetailView(appID: DebugLaunch.value("-app") ?? "chatgpt") }
         case "homework":
             NavigationStack { GuidedRulesView() }
         case "safety":

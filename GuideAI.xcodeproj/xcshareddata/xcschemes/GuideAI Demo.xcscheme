@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "DF082FC4CFEE4359AED314AD"
+               BlueprintIdentifier = "F72E889C8CB849C3AC4998BC"
                BuildableName = "GuideAIDemo.app"
                BlueprintName = "GuideAI Demo"
                ReferencedContainer = "container:GuideAI.xcodeproj">
@@ -36,7 +36,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "DF082FC4CFEE4359AED314AD"
+            BlueprintIdentifier = "F72E889C8CB849C3AC4998BC"
             BuildableName = "GuideAIDemo.app"
             BlueprintName = "GuideAI Demo"
             ReferencedContainer = "container:GuideAI.xcodeproj">

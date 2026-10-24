@@ -35,10 +35,40 @@ enum CategoryState: String, Codable, CaseIterable, Identifiable {
 
 enum SiteOverride: String, Codable, CaseIterable, Identifiable {
     case allow
+    /// Only takes effect on sites whose category supports Guided (chatbots).
+    case guided
     case block
 
     var id: String { rawValue }
-    var label: String { self == .allow ? "Always allow" : "Always block" }
+
+    var label: String {
+        switch self {
+        case .allow: return "Always allow"
+        case .guided: return "Always guided"
+        case .block: return "Always block"
+        }
+    }
+
+    var categoryState: CategoryState {
+        switch self {
+        case .allow: return .allow
+        case .guided: return .guided
+        case .block: return .block
+        }
+    }
+
+    init(_ state: CategoryState) {
+        switch state {
+        case .allow: self = .allow
+        case .guided: self = .guided
+        case .block: self = .block
+        }
+    }
+
+    /// The choices that make sense for a site in a category (Guided only for chatbots).
+    static func options(supportsGuided: Bool) -> [SiteOverride] {
+        supportsGuided ? allCases : [.allow, .block]
+    }
 }
 
 struct AISchedule: Codable, Equatable, Identifiable {
@@ -127,6 +157,8 @@ struct KidPolicy: Codable, Equatable {
     var schedules: [AISchedule]
     var guidedRules: GuidedRules
     var temporaryAllows: [TemporaryAllow]
+    /// Extra Guided instructions for one catalog app, keyed by app id.
+    var appInstructions: [String: [String]]
 
     init(
         masterAIOff: Bool,
@@ -134,7 +166,8 @@ struct KidPolicy: Codable, Equatable {
         siteOverrides: [String: SiteOverride],
         schedules: [AISchedule],
         guidedRules: GuidedRules,
-        temporaryAllows: [TemporaryAllow] = []
+        temporaryAllows: [TemporaryAllow] = [],
+        appInstructions: [String: [String]] = [:]
     ) {
         self.masterAIOff = masterAIOff
         self.categories = categories
@@ -142,6 +175,7 @@ struct KidPolicy: Codable, Equatable {
         self.schedules = schedules
         self.guidedRules = guidedRules
         self.temporaryAllows = temporaryAllows
+        self.appInstructions = appInstructions
     }
 
     init(from decoder: Decoder) throws {
@@ -153,6 +187,7 @@ struct KidPolicy: Codable, Equatable {
         guidedRules = try c.decodeIfPresent(GuidedRules.self, forKey: .guidedRules)
             ?? GuidedRules(blockHomeworkOffloading: true, requireAttemptFirst: true, globalInstructions: [])
         temporaryAllows = try c.decodeIfPresent([TemporaryAllow].self, forKey: .temporaryAllows) ?? []
+        appInstructions = try c.decodeIfPresent([String: [String]].self, forKey: .appInstructions) ?? [:]
     }
 
     func activeTemporaryAllows(at date: Date = Date()) -> [TemporaryAllow] {
@@ -213,6 +248,34 @@ struct AICategory: Codable, Equatable, Identifiable {
     let supportsGuided: Bool
     let defaultState: CategoryState
     let domains: [String]
+    /// nil from servers that predate app info.
+    var catalogApps: [AIApp]? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, icon, supportsGuided, defaultState, domains
+        case catalogApps = "apps"
+    }
+
+    /// Every site as an app: catalog apps first, then any domain no app covers, named by its domain.
+    var apps: [AIApp] {
+        let known = catalogApps ?? []
+        let covered = Set(known.flatMap(\.domains))
+        return known + domains.filter { !covered.contains($0) }.map {
+            AIApp(id: $0, name: $0, domains: [$0], audience: "", quirks: [])
+        }
+    }
+}
+
+/// One AI product inside a category, like ChatGPT (chatgpt.com + chat.openai.com).
+struct AIApp: Codable, Equatable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let domains: [String]
+    /// Who it's for, including its minimum age when known.
+    let audience: String
+    let quirks: [String]
+
+    var primaryDomain: String { domains[0] }
 }
 
 struct AICatalog: Codable, Equatable {
@@ -221,6 +284,13 @@ struct AICatalog: Codable, Equatable {
 
     func category(id: String?) -> AICategory? {
         categories.first { $0.id == id }
+    }
+
+    func app(id: String) -> (app: AIApp, category: AICategory)? {
+        for category in categories {
+            if let app = category.apps.first(where: { $0.id == id }) { return (app, category) }
+        }
+        return nil
     }
 
     func category(forDomain host: String) -> AICategory? {

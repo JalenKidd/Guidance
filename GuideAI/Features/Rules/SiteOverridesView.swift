@@ -28,7 +28,8 @@ struct SiteOverridesView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 Picker("Rule", selection: $newRule) {
-                    ForEach(SiteOverride.allCases) { Text($0.label).tag($0) }
+                    // Guided only works on catalog chatbots; set that on the app's own page.
+                    ForEach(SiteOverride.options(supportsGuided: false)) { Text($0.label).tag($0) }
                 }
                 Button(store.isAllKids ? "Add exception for all kids" : "Add exception") { add() }
                     .disabled(DomainInput.normalize(newSite) == nil)
@@ -51,7 +52,7 @@ struct SiteOverridesView: View {
                             }
                             Spacer()
                             if let rule = rule ?? nil {
-                                StateBadge(state: rule == .allow ? .allow : .block)
+                                StateBadge(state: rule.categoryState)
                             } else {
                                 Text("Some kids").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             }

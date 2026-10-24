@@ -15,6 +15,25 @@ test("catalog validation rejects a domain listed in two categories", () => {
   assert.equal(catalogSchema.safeParse(broken).success, false);
 });
 
+test("catalog apps only list their own category's domains, once", () => {
+  const catalog = loadCatalog();
+  assert.ok(catalog.categories.every((c) => c.apps.length > 0));
+  const foreign = structuredClone(catalog);
+  foreign.categories[0].apps[0].domains.push(foreign.categories[1].domains[0]);
+  assert.equal(catalogSchema.safeParse(foreign).success, false);
+  const twice = structuredClone(catalog);
+  twice.categories[0].apps[1].domains.push(twice.categories[0].apps[0].domains[0]);
+  assert.equal(catalogSchema.safeParse(twice).success, false);
+});
+
+test("sites can be Guided on their own, and app instructions are limited", () => {
+  assert.equal(kidPolicySchema.parse({ siteOverrides: { "claude.ai": "guided" } }).siteOverrides["claude.ai"], "guided");
+  assert.deepEqual(kidPolicySchema.parse({}).appInstructions, {});
+  const six = Array.from({ length: 6 }, (_, i) => `rule ${i}`);
+  assert.equal(kidPolicySchema.safeParse({ appInstructions: { chatgpt: six } }).success, false);
+  assert.equal(kidPolicySchema.safeParse({ appInstructions: { chatgpt: ["x".repeat(301)] } }).success, false);
+});
+
 test("the default policy validates and covers every category", () => {
   const catalog = loadCatalog();
   const policy = kidPolicySchema.parse(defaultPolicy(catalog));

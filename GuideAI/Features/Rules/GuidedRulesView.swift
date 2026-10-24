@@ -17,7 +17,7 @@ struct GuidedRulesView: View {
                 form(kid)
             }
         }
-        .navigationTitle("Homework rules")
+        .navigationTitle("Rules for LLMs (Chatbots)")
         .navigationBarTitleDisplayMode(.inline)
     }
 

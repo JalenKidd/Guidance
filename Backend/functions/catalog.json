@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "categories": [
     {
       "id": "chatbots",
@@ -21,6 +21,143 @@
         "poe.com",
         "chat.mistral.ai",
         "pi.ai"
+      ],
+      "apps": [
+        {
+          "id": "chatgpt",
+          "name": "ChatGPT",
+          "domains": [
+            "chatgpt.com",
+            "chat.openai.com"
+          ],
+          "audience": "Ages 13+. Under 18 needs a parent's OK; teens get a stricter teen mode.",
+          "quirks": [
+            "Remembers past chats if memory is on",
+            "Can make images and talk out loud",
+            "Has its own iPhone app outside Safari"
+          ]
+        },
+        {
+          "id": "claude",
+          "name": "Claude",
+          "domains": [
+            "claude.ai"
+          ],
+          "audience": "Adults only (18+).",
+          "quirks": [
+            "Strong at writing and long documents",
+            "Has its own iPhone app outside Safari"
+          ]
+        },
+        {
+          "id": "gemini",
+          "name": "Gemini",
+          "domains": [
+            "gemini.google.com"
+          ],
+          "audience": "Ages 13+ in most countries. Younger kids only through Google Family Link.",
+          "quirks": [
+            "Signs in with the kid's Google account",
+            "Can make images",
+            "Built into Android and Google apps"
+          ]
+        },
+        {
+          "id": "copilot",
+          "name": "Microsoft Copilot",
+          "domains": [
+            "copilot.microsoft.com"
+          ],
+          "audience": "Ages 13+, with fewer features for teens.",
+          "quirks": [
+            "Searches the web for answers",
+            "Built into Windows and Edge"
+          ]
+        },
+        {
+          "id": "perplexity",
+          "name": "Perplexity",
+          "domains": [
+            "perplexity.ai"
+          ],
+          "audience": "Ages 13+. A parent must accept the terms for a minor.",
+          "quirks": [
+            "Answers with web search and sources",
+            "No parent controls of its own"
+          ]
+        },
+        {
+          "id": "meta-ai",
+          "name": "Meta AI",
+          "domains": [
+            "meta.ai"
+          ],
+          "audience": "Ages 13+.",
+          "quirks": [
+            "Also lives inside Instagram, WhatsApp and Messenger",
+            "Can make images"
+          ]
+        },
+        {
+          "id": "grok",
+          "name": "Grok",
+          "domains": [
+            "grok.com"
+          ],
+          "audience": "Ages 13+. Under 18 needs a parent's OK.",
+          "quirks": [
+            "Its own terms warn replies may not suit all ages",
+            "Also built into X (Twitter)"
+          ]
+        },
+        {
+          "id": "deepseek",
+          "name": "DeepSeek",
+          "domains": [
+            "chat.deepseek.com"
+          ],
+          "audience": "Meant for adults (18+). Minors only with a parent's consent.",
+          "quirks": [
+            "Run by a company in China",
+            "Free to use"
+          ]
+        },
+        {
+          "id": "poe",
+          "name": "Poe",
+          "domains": [
+            "poe.com"
+          ],
+          "audience": "Ages 13+. A parent must accept the terms for a minor.",
+          "quirks": [
+            "One app that reaches many other chatbots",
+            "Its terms warn some bots aren't suitable for minors"
+          ]
+        },
+        {
+          "id": "le-chat",
+          "name": "Le Chat (Mistral)",
+          "domains": [
+            "chat.mistral.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Made by Mistral, a French AI company",
+            "Can search the web and make images"
+          ]
+        },
+        {
+          "id": "pi",
+          "name": "Pi",
+          "domains": [
+            "pi.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Built for friendly, personal conversation",
+            "Feels more like a companion than a homework tool"
+          ]
+        }
       ]
     },
     {
@@ -39,6 +176,101 @@
         "hix.ai",
         "wordtune.com",
         "textcortex.com"
+      ],
+      "apps": [
+        {
+          "id": "quillbot",
+          "name": "QuillBot",
+          "domains": [
+            "quillbot.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Rewrites text so it reads differently",
+            "Often used to reword copied work"
+          ]
+        },
+        {
+          "id": "jasper",
+          "name": "Jasper",
+          "domains": [
+            "jasper.ai"
+          ],
+          "audience": "Built for businesses and marketers.",
+          "quirks": [
+            "Writes full articles from a short prompt",
+            "Paid service"
+          ]
+        },
+        {
+          "id": "copy-ai",
+          "name": "Copy.ai",
+          "domains": [
+            "copy.ai"
+          ],
+          "audience": "Built for businesses and marketers.",
+          "quirks": [
+            "Writes full drafts from a short prompt"
+          ]
+        },
+        {
+          "id": "writesonic",
+          "name": "Writesonic",
+          "domains": [
+            "writesonic.com"
+          ],
+          "audience": "Built for businesses and marketers.",
+          "quirks": [
+            "Writes full articles and essays"
+          ]
+        },
+        {
+          "id": "rytr",
+          "name": "Rytr",
+          "domains": [
+            "rytr.me"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Writes drafts from a short prompt",
+            "Free plan available"
+          ]
+        },
+        {
+          "id": "hix",
+          "name": "HIX AI",
+          "domains": [
+            "hix.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Has an essay writer and an AI \"humanizer\""
+          ]
+        },
+        {
+          "id": "wordtune",
+          "name": "Wordtune",
+          "domains": [
+            "wordtune.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Rewrites and shortens sentences",
+            "Has a browser extension"
+          ]
+        },
+        {
+          "id": "textcortex",
+          "name": "TextCortex",
+          "domains": [
+            "textcortex.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Writes and rewrites text",
+            "Has a browser extension"
+          ]
+        }
       ]
     },
     {
@@ -53,6 +285,52 @@
         "stealthwriter.ai",
         "phrasly.ai",
         "netus.ai"
+      ],
+      "apps": [
+        {
+          "id": "undetectable",
+          "name": "Undetectable AI",
+          "domains": [
+            "undetectable.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Made to hide AI writing from detectors"
+          ]
+        },
+        {
+          "id": "stealthwriter",
+          "name": "StealthWriter",
+          "domains": [
+            "stealthwriter.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Made to hide AI writing from detectors"
+          ]
+        },
+        {
+          "id": "phrasly",
+          "name": "Phrasly",
+          "domains": [
+            "phrasly.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Made to hide AI writing from detectors"
+          ]
+        },
+        {
+          "id": "netus",
+          "name": "Netus AI",
+          "domains": [
+            "netus.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Made to hide AI writing from detectors"
+          ]
+        }
       ]
     },
     {
@@ -69,6 +347,77 @@
         "gauthmath.com",
         "cymath.com",
         "mathpapa.com"
+      ],
+      "apps": [
+        {
+          "id": "photomath",
+          "name": "Photomath",
+          "domains": [
+            "photomath.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Solves a problem from a photo",
+            "Owned by Google",
+            "Mostly used as a phone app"
+          ]
+        },
+        {
+          "id": "mathway",
+          "name": "Mathway",
+          "domains": [
+            "mathway.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Gives answers; step-by-step is paid"
+          ]
+        },
+        {
+          "id": "symbolab",
+          "name": "Symbolab",
+          "domains": [
+            "symbolab.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Shows full step-by-step solutions"
+          ]
+        },
+        {
+          "id": "gauth",
+          "name": "Gauth",
+          "domains": [
+            "gauthmath.com"
+          ],
+          "audience": "Not meant for kids under 13.",
+          "quirks": [
+            "Solves homework from a photo",
+            "Owned by ByteDance, the company behind TikTok"
+          ]
+        },
+        {
+          "id": "cymath",
+          "name": "Cymath",
+          "domains": [
+            "cymath.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Shows step-by-step solutions"
+          ]
+        },
+        {
+          "id": "mathpapa",
+          "name": "MathPapa",
+          "domains": [
+            "mathpapa.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Focused on algebra, with steps"
+          ]
+        }
       ]
     },
     {
@@ -84,6 +433,65 @@
         "coursehero.com",
         "studocu.com",
         "numerade.com"
+      ],
+      "apps": [
+        {
+          "id": "chegg",
+          "name": "Chegg",
+          "domains": [
+            "chegg.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Paid answers to textbook problems",
+            "Has an AI answer tool"
+          ]
+        },
+        {
+          "id": "brainly",
+          "name": "Brainly",
+          "domains": [
+            "brainly.com"
+          ],
+          "audience": "Ages 13+. Younger kids only with a parent-managed account.",
+          "quirks": [
+            "Answers from other students and AI"
+          ]
+        },
+        {
+          "id": "course-hero",
+          "name": "Course Hero",
+          "domains": [
+            "coursehero.com"
+          ],
+          "audience": "Rated 13+ by Common Sense Media.",
+          "quirks": [
+            "Shared notes, past tests and answers",
+            "Has an AI answer tool"
+          ]
+        },
+        {
+          "id": "studocu",
+          "name": "Studocu",
+          "domains": [
+            "studocu.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Shared class notes and past exams"
+          ]
+        },
+        {
+          "id": "numerade",
+          "name": "Numerade",
+          "domains": [
+            "numerade.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Video answers to textbook problems"
+          ]
+        }
       ]
     },
     {
@@ -98,6 +506,55 @@
         "replika.com",
         "janitorai.com",
         "talkie-ai.com"
+      ],
+      "apps": [
+        {
+          "id": "character-ai",
+          "name": "Character.AI",
+          "domains": [
+            "character.ai"
+          ],
+          "audience": "Ages 13+ (16+ in Europe). Under 18 can't have open-ended chats.",
+          "quirks": [
+            "Role-play with made-up characters",
+            "Can feel like a real friendship"
+          ]
+        },
+        {
+          "id": "replika",
+          "name": "Replika",
+          "domains": [
+            "replika.com"
+          ],
+          "audience": "Adults only (18+).",
+          "quirks": [
+            "An \"AI friend\" or partner that remembers you",
+            "Made for ongoing personal chats"
+          ]
+        },
+        {
+          "id": "janitor-ai",
+          "name": "Janitor AI",
+          "domains": [
+            "janitorai.com"
+          ],
+          "audience": "Adults only (18+).",
+          "quirks": [
+            "Role-play chats, including adult content"
+          ]
+        },
+        {
+          "id": "talkie",
+          "name": "Talkie",
+          "domains": [
+            "talkie-ai.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Role-play with made-up characters",
+            "Few parent controls"
+          ]
+        }
       ]
     },
     {
@@ -114,6 +571,76 @@
         "runwayml.com",
         "firefly.adobe.com",
         "krea.ai"
+      ],
+      "apps": [
+        {
+          "id": "midjourney",
+          "name": "Midjourney",
+          "domains": [
+            "midjourney.com"
+          ],
+          "audience": "Ages 13+. A parent must agree for younger teens.",
+          "quirks": [
+            "Makes very realistic images",
+            "Images are public by default"
+          ]
+        },
+        {
+          "id": "ideogram",
+          "name": "Ideogram",
+          "domains": [
+            "ideogram.ai"
+          ],
+          "audience": "Ages 13+. A parent must accept the terms for a minor.",
+          "quirks": [
+            "Good at putting text inside images"
+          ]
+        },
+        {
+          "id": "leonardo",
+          "name": "Leonardo AI",
+          "domains": [
+            "leonardo.ai"
+          ],
+          "audience": "Ages 13+. Under 18 needs a parent's OK.",
+          "quirks": [
+            "Makes images and short videos"
+          ]
+        },
+        {
+          "id": "runway",
+          "name": "Runway",
+          "domains": [
+            "runwayml.com"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Makes and edits videos with AI"
+          ]
+        },
+        {
+          "id": "firefly",
+          "name": "Adobe Firefly",
+          "domains": [
+            "firefly.adobe.com"
+          ],
+          "audience": "Uses an Adobe account.",
+          "quirks": [
+            "Makes and edits images",
+            "Built into Photoshop"
+          ]
+        },
+        {
+          "id": "krea",
+          "name": "Krea",
+          "domains": [
+            "krea.ai"
+          ],
+          "audience": "Minimum age not confirmed. Check its terms.",
+          "quirks": [
+            "Makes images and videos in real time"
+          ]
+        }
       ]
     },
     {
@@ -126,6 +653,31 @@
       "domains": [
         "khanmigo.ai",
         "khanacademy.org"
+      ],
+      "apps": [
+        {
+          "id": "khanmigo",
+          "name": "Khanmigo",
+          "domains": [
+            "khanmigo.ai"
+          ],
+          "audience": "Elementary school to college. Under 18 needs a parent to sign them up.",
+          "quirks": [
+            "An AI tutor that guides instead of giving answers",
+            "Paid, or free through some schools"
+          ]
+        },
+        {
+          "id": "khan-academy",
+          "name": "Khan Academy",
+          "domains": [
+            "khanacademy.org"
+          ],
+          "audience": "All ages. Free.",
+          "quirks": [
+            "Lessons, videos and practice"
+          ]
+        }
       ]
     }
   ]

@@ -43,6 +43,14 @@ test("site override beats the category", () => {
   assert.equal(resolver.resolveSite("chatgpt.com", p, catalog, at("12:00")).state, "block");
 });
 
+test("one chatbot can be Guided while its category is blocked", () => {
+  const p = policy({ categories: { ...policy().categories, chatbots: "block" }, siteOverrides: { "claude.ai": "guided" } });
+  const r = resolver.resolveSite("claude.ai", p, catalog, at("12:00"));
+  assert.equal(r.state, "guided");
+  assert.equal(r.source, "override");
+  assert.equal(resolver.resolveSite("chatgpt.com", p, catalog, at("12:00")).state, "block");
+});
+
 test("parents can block a site that isn't in the catalog", () => {
   const p = policy({ siteOverrides: { "newaiessay.io": "block" } });
   const r = resolver.resolveSite("app.newaiessay.io", p, catalog, at("12:00"));
