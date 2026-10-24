@@ -66,7 +66,8 @@ private struct HomeContent: View {
             .guideCard()
         }
 
-        MasterSwitchCard(kid: kid, effective: effective)
+        MasterSwitchCard(kid: kid, effective: effective, poweredDown: poweredDown(effective))
+            .zIndex(1) // Keeps the shockwave ring above the rows below.
 
         if !store.isAllKids && !effective.activeScheduleNames.isEmpty {
             activeScheduleBanner(effective)
@@ -87,8 +88,9 @@ private struct HomeContent: View {
             }
         }
 
-        ForEach(catalog.categories) { category in
-            CategoryRow(category: category, effective: effective)
+        let off = poweredDown(effective)
+        ForEach(Array(catalog.categories.enumerated()), id: \.element.id) { index, category in
+            CategoryRow(category: category, effective: effective, poweredDown: off, index: index)
         }
 
         SectionLabel(title: "Rules")
@@ -113,6 +115,11 @@ private struct HomeContent: View {
             linkCard(symbol: "list.bullet.rectangle.fill", title: "Site exceptions")
         }
         .buttonStyle(.plain)
+    }
+
+    /// Whether "Turn off all AI" is in effect for what's on screen.
+    private func poweredDown(_ effective: EffectiveRules) -> Bool {
+        store.isAllKids ? store.shared { $0.masterAIOff } == true : effective.masterOff
     }
 
     private func activeScheduleBanner(_ effective: EffectiveRules) -> some View {
@@ -155,45 +162,69 @@ private struct MasterSwitchCard: View {
     @EnvironmentObject private var store: FamilyStore
     let kid: Kid
     let effective: EffectiveRules
+    /// AI is off: the card goes dark.
+    let poweredDown: Bool
+    /// Bumped when the parent flips the switch, to fire the shockwave.
+    @State private var shockwave = 0
+
+    private static let offGradient = LinearGradient(
+        colors: [Color(white: 0.2), Color(white: 0.05)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: GuideTheme.cornerRadius, style: .continuous)
+
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.isAllKids ? "AI ON ALL \(store.kids.count) KIDS' PHONES" : "AI ON \(kid.name.uppercased())'S PHONE")
                         .font(.caption2.weight(.heavy))
                         .kerning(0.8)
-                        .foregroundStyle(GuideTheme.heroSecondaryText)
+                        .foregroundStyle(secondaryText)
                     Text(headline)
                         .font(.title2.weight(.bold))
-                        .foregroundStyle(GuideTheme.heroText)
+                        .foregroundStyle(primaryText)
+                        .contentTransition(.opacity)
                 }
                 Spacer()
-                Image(systemName: effective.masterOff ? "powersleep" : "shield.lefthalf.filled")
-                    .font(.system(size: 30, weight: .semibold))
+                // The half shield powers up into a full, glowing super shield.
+                Image(systemName: poweredDown ? "bolt.shield.fill" : "shield.lefthalf.filled")
+                    .font(.system(size: poweredDown ? 40 : 30, weight: .semibold))
                     .foregroundStyle(GuideTheme.brand)
+                    .shadow(color: GuideTheme.brand.opacity(poweredDown ? 0.9 : 0), radius: poweredDown ? 14 : 0)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: poweredDown)
+                    .symbolEffect(.pulse, options: .repeating, isActive: poweredDown)
+                    .background {
+                        ShockwaveRings(trigger: shockwave, color: GuideTheme.brand)
+                    }
             }
 
             if let detail {
                 Text(detail)
                     .font(.subheadline)
-                    .foregroundStyle(GuideTheme.heroSecondaryText)
+                    .foregroundStyle(secondaryText)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Toggle(isOn: Binding(
                     get: { store.shared { $0.masterAIOff } ?? false },
-                    set: { value in store.updatePolicies { $0.masterAIOff = value } }
+                    set: { value in
+                        shockwave += 1
+                        store.updatePolicies { $0.masterAIOff = value }
+                    }
                 )) {
                     Text("Turn off all AI")
                         .font(.headline)
-                        .foregroundStyle(GuideTheme.heroText)
+                        .foregroundStyle(primaryText)
                 }
                 .tint(GuideTheme.brand)
                 if store.shared({ $0.masterAIOff }) == nil {
                     Text("Off for some kids. Switching it sets it for all.")
                         .font(.caption)
-                        .foregroundStyle(GuideTheme.heroSecondaryText)
+                        .foregroundStyle(secondaryText)
                 }
             }
             .padding(12)
@@ -201,8 +232,19 @@ private struct MasterSwitchCard: View {
         }
         .padding(GuideTheme.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(GuideTheme.heroGradient, in: RoundedRectangle(cornerRadius: GuideTheme.cornerRadius, style: .continuous))
+        .background {
+            // Cross-fade between the red card and the dark "powered down" card.
+            ZStack {
+                shape.fill(GuideTheme.heroGradient)
+                shape.fill(Self.offGradient).opacity(poweredDown ? 1 : 0)
+            }
+        }
+        .scaleEffect(poweredDown ? 0.98 : 1)
+        .animation(.spring(response: 0.5, dampingFraction: 0.65), value: poweredDown)
     }
+
+    private var primaryText: Color { poweredDown ? .white : GuideTheme.heroText }
+    private var secondaryText: Color { poweredDown ? .white.opacity(0.7) : GuideTheme.heroSecondaryText }
 
     private var headline: String {
         if store.isAllKids {
@@ -229,11 +271,18 @@ private struct CategoryRow: View {
     @EnvironmentObject private var store: FamilyStore
     let category: AICategory
     let effective: EffectiveRules
+    let poweredDown: Bool
+    /// Position on the page, so rows shut off one after another from the top.
+    let index: Int
+    /// Bumped when the parent picks Block here, to fire a ring from the button.
+    @State private var blockRing = 0
 
     var body: some View {
         let apps = category.apps
         let customized = customizedApps(apps)
         let shared = store.shared { $0.categories[category.id] ?? category.defaultState }
+        let blocked = customized.isEmpty && shared == .block
+        let locked = poweredDown || blocked
 
         VStack(alignment: .leading, spacing: 10) {
             NavigationLink(value: CategoryRoute(id: category.id)) {
@@ -255,11 +304,14 @@ private struct CategoryRow: View {
                     .foregroundStyle(.secondary)
             }
 
+            // With "Turn off all AI" on, every row reads Block and can't be changed.
             CategoryRuleBar(
                 supportsGuided: category.supportsGuided,
-                selected: customized.isEmpty ? shared : nil,
-                isCustom: !customized.isEmpty
+                selected: poweredDown ? .block : (customized.isEmpty ? shared : nil),
+                isCustom: !poweredDown && !customized.isEmpty,
+                blockRing: blockRing
             ) { state in
+                if state == .block && !blocked { blockRing += 1 }
                 // Picking a rule for the whole category also clears the apps' own rules.
                 let domains = customized.flatMap(\.domains)
                 store.updatePolicies { policy in
@@ -267,13 +319,16 @@ private struct CategoryRow: View {
                     for domain in domains { policy.siteOverrides[domain] = nil }
                 }
             }
-            if shared == nil && customized.isEmpty { MixedCaption() }
+            .disabled(poweredDown)
+            if shared == nil && customized.isEmpty && !poweredDown { MixedCaption() }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 14) {
-                    ForEach(apps) { app in
+                    ForEach(Array(apps.enumerated()), id: \.element.id) { position, app in
                         NavigationLink(value: AppRoute(id: app.id)) {
-                            AppTile(app: app, override: override(for: app))
+                            // Locks pop on left to right; with "Turn off all AI" they wait for this row's turn.
+                            AppTile(app: app, override: override(for: app), locked: locked,
+                                    delay: (poweredDown ? delay + 0.15 : 0.1) + Double(position) * 0.05)
                         }
                         .buttonStyle(.plain)
                     }
@@ -283,8 +338,16 @@ private struct CategoryRow: View {
             .padding(.horizontal, -16)
         }
         .padding(.top, 6)
-        .opacity(!store.isAllKids && effective.masterOff ? 0.55 : 1)
+        .saturation(locked ? 0 : 1)
+        .opacity(locked ? 0.5 : 1)
+        .scaleEffect(locked ? 0.96 : 1, anchor: .leading)
+        // "Turn off all AI" sweeps down the page; Block on this row animates right away.
+        .animation(.spring(response: 0.45, dampingFraction: 0.7).delay(delay), value: poweredDown)
+        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: blocked)
+        .zIndex(blockRing > 0 ? 1 : 0)
     }
+
+    private var delay: Double { 0.15 + Double(index) * 0.08 }
 
     /// Apps any target kid has given their own rule.
     private func customizedApps(_ apps: [AIApp]) -> [AIApp] {
@@ -315,12 +378,18 @@ private struct CategoryRuleBar: View {
     /// nil when Custom or when kids differ.
     let selected: CategoryState?
     let isCustom: Bool
+    var blockRing = 0
     let choose: (CategoryState) -> Void
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(supportsGuided ? CategoryState.allCases : [.allow, .block]) { state in
                 segment(state.label, isOn: selected == state) { choose(state) }
+                    .background {
+                        if state == .block {
+                            ShockwaveRings(trigger: blockRing, color: GuideTheme.brand, spread: 4)
+                        }
+                    }
             }
             if isCustom {
                 segment("Custom", isOn: true, action: nil)
@@ -352,10 +421,24 @@ private struct AppTile: View {
     let app: AIApp
     /// Outer nil: kids differ. Inner nil: follows the category.
     let override: SiteOverride??
+    /// "Turn off all AI" is on: a lock pops onto the icon.
+    var locked = false
+    var delay: Double = 0
 
     var body: some View {
         VStack(spacing: 6) {
             AppIconView(app: app, size: 72)
+                .overlay {
+                    if locked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.65), in: Circle())
+                            .transition(.scale(scale: 0.2).combined(with: .opacity))
+                    }
+                }
+                .animation(.spring(response: 0.35, dampingFraction: 0.55).delay(delay), value: locked)
                 .overlay(alignment: .topTrailing) {
                     if let badge {
                         Image(systemName: badge)
@@ -385,5 +468,33 @@ private struct AppTile: View {
     private var accessibilityRule: String? {
         guard let override else { return "different for each kid" }
         return override?.label
+    }
+}
+
+/// Two rings that burst out from the master switch icon when it's flipped.
+private struct ShockwaveRings: View {
+    let trigger: Int
+    let color: Color
+    /// How many times its own size each ring grows.
+    var spread: CGFloat = 16
+    @State private var progress: [CGFloat] = [1, 1]
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<2, id: \.self) { i in
+                Circle()
+                    .stroke(color, lineWidth: 8 * (1 - progress[i]) + 1)
+                    .frame(width: 44, height: 44)
+                    .scaleEffect(1 + progress[i] * spread)
+                    .opacity(Double(1 - progress[i]) * 0.8)
+            }
+        }
+        .allowsHitTesting(false)
+        .onChange(of: trigger) { _, _ in
+            for i in progress.indices {
+                progress[i] = 0
+                withAnimation(.easeOut(duration: 0.9).delay(Double(i) * 0.15)) { progress[i] = 1 }
+            }
+        }
     }
 }
