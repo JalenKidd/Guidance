@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { seedDemoAccounts } from "./accounts.js";
 import { createApp } from "./app.js";
@@ -245,4 +248,151 @@ test("kids can be renamed", async () => {
   const renamed = await call("PUT", `/families/${family.familyId}/kids/${kid.id}`, { name: "Leonardo" }, family.parentToken);
   assert.equal(renamed.body.name, "Leonardo");
   assert.equal(renamed.body.pairingCode, kid.pairingCode);
+});
+
+test("saved and downloaded rules stay pending until the paired device confirms the current revision", async () => {
+  const family = (await call("POST", "/families")).body;
+  const kid = (await call("POST", `/families/${family.familyId}/kids`, { name: "Maya" }, family.parentToken)).body;
+  const path = `/families/${family.familyId}/kids/${kid.id}`;
+  assert.equal(kid.policyRevision, 1);
+  assert.equal(kid.appliedPolicyRevision, null);
+  assert.equal(kid.policyAppliedAt, null);
+
+  const device = (await call("POST", "/pair", { code: kid.pairingCode })).body.deviceToken;
+  const saved = await call("PUT", `${path}/policy`, { ...kid.policy, masterAIOff: true, changeId: "edit-1" }, family.parentToken);
+  assert.equal(saved.body.policyRevision, 2);
+  assert.equal(saved.body.appliedPolicyRevision, null);
+  const download = await call("GET", "/device/policy", undefined, device);
+  assert.equal(download.body.policyRevision, 2);
+  assert.equal(download.body.policy.masterAIOff, true);
+  const pending = (await call("GET", `${path}/activity`, undefined, family.parentToken)).body;
+  assert.equal(pending.policyRevision, 2);
+  assert.equal(pending.appliedPolicyRevision, null, "downloading must never imply installation");
+  assert.equal(pending.policyAppliedAt, null);
+
+  const applied = await call("POST", "/device/policy-applied", { policyRevision: 2, policyAppliedAt: "2000-01-01T00:00:00Z" }, device);
+  assert.equal(applied.status, 200);
+  assert.equal(applied.body.appliedPolicyRevision, 2);
+  assert.ok(Date.parse(applied.body.policyAppliedAt) > Date.now() - 60_000, "the server owns the acknowledgement time");
+  const duplicate = await call("POST", "/device/policy-applied", { policyRevision: 2 }, device);
+  assert.equal(duplicate.body.policyAppliedAt, applied.body.policyAppliedAt, "retries preserve the original confirmation time");
+
+  const familyAfter = (await call("GET", `/families/${family.familyId}`, undefined, family.parentToken)).body;
+  assert.equal(familyAfter.kids[0].appliedPolicyRevision, 2);
+  assert.equal(familyAfter.kids[0].policyAppliedAt, applied.body.policyAppliedAt);
+  const changed = await call("PUT", `${path}/policy`, { ...kid.policy, changeId: "edit-2" }, family.parentToken);
+  assert.equal(changed.body.policyRevision, 3);
+  assert.equal(changed.body.appliedPolicyRevision, 2, "the old confirmation remains evidence of an older revision only");
+  assert.equal(changed.body.policyAppliedAt, applied.body.policyAppliedAt);
+  const activity = (await call("GET", `${path}/activity`, undefined, family.parentToken)).body;
+  assert.equal(activity.policyRevision, 3);
+  assert.equal(activity.appliedPolicyRevision, 2);
+});
+
+test("policy confirmations reject missing, invalid, stale, future, and unpaired revisions", async () => {
+  const { parent, device, parentPath } = await pairedKid();
+  for (const body of [{}, { policyRevision: 0 }, { policyRevision: -1 }, { policyRevision: 1.5 }, { policyRevision: "1" }, { policyRevision: Number.MAX_SAFE_INTEGER + 1 }]) {
+    assert.equal((await call("POST", "/device/policy-applied", body, device)).status, 400);
+  }
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 1 })).status, 401);
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 1 }, "not-a-device")).status, 401);
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 1 }, parent)).status, 401);
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 2 }, device)).status, 409);
+  await call("PUT", `${parentPath}/policy`, { masterAIOff: true }, parent);
+  const stale = await call("POST", "/device/policy-applied", { policyRevision: 1 }, device);
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.policyRevision, 2);
+  const activity = (await call("GET", `${parentPath}/activity`, undefined, parent)).body;
+  assert.equal(activity.appliedPolicyRevision, null);
+  assert.equal(activity.policyAppliedAt, null);
+});
+
+test("policy saves are semantic and an edit id can be retried safely", async () => {
+  const { parent, device, parentPath } = await pairedKid();
+  const initial = (await call("GET", "/device/policy", undefined, device)).body;
+  const policy = { ...initial.policy, masterAIOff: true };
+  const saved = await call("PUT", `${parentPath}/policy`, { ...policy, changeId: "lost-response" }, parent);
+  assert.equal(saved.body.policyRevision, 2);
+  assert.equal("changeId" in saved.body.policy, false);
+  const retried = await call("PUT", `${parentPath}/policy`, { changeId: "lost-response", ...policy }, parent);
+  assert.equal(retried.body.policyRevision, 2);
+  const unchanged = await call("PUT", `${parentPath}/policy`, { ...policy, categories: Object.fromEntries(Object.entries(policy.categories).reverse()), changeId: "same-settings-new-edit" }, parent);
+  assert.equal(unchanged.body.policyRevision, 2, "object-key order is not a rule change");
+  const conflict = await call("PUT", `${parentPath}/policy`, { ...initial.policy, changeId: "same-settings-new-edit" }, parent);
+  assert.equal(conflict.status, 409);
+  assert.equal((await call("GET", "/device/policy", undefined, device)).body.policy.masterAIOff, true);
+  assert.equal((await call("PUT", `${parentPath}/policy`, { ...policy, changeId: "" }, parent)).status, 400);
+
+  // The same policy with omitted optional defaults is also a no-op.
+  await call("PUT", `${parentPath}/policy`, {}, parent);
+  const defaults = (await call("GET", "/device/policy", undefined, device)).body;
+  const equivalent = await call("PUT", `${parentPath}/policy`, defaults.policy, parent);
+  assert.equal(equivalent.body.policyRevision, defaults.policyRevision);
+  const lateRetry = await call("PUT", `${parentPath}/policy`, { ...policy, changeId: "lost-response" }, parent);
+  assert.equal(lateRetry.status, 200);
+  assert.equal(lateRetry.body.policyRevision, defaults.policyRevision, "retrying an older edit never overwrites a newer save");
+  assert.equal(lateRetry.body.policy.masterAIOff, false);
+});
+
+test("temporary approvals advance the revision and a lost save response cannot erase them", async () => {
+  const { parent, device, parentPath } = await pairedKid();
+  const initial = (await call("GET", "/device/policy", undefined, device)).body;
+  const edit = { ...initial.policy, masterAIOff: true, changeId: "before-approval" };
+  await call("PUT", `${parentPath}/policy`, edit, parent);
+  await call("POST", "/device/policy-applied", { policyRevision: 2 }, device);
+  const request = (await call("POST", "/device/requests", { domain: "quillbot.com", kind: "site", reason: "For my assignment", minutes: 15 }, device)).body;
+  const approved = await call("POST", `${parentPath}/requests/${request.id}`, { approve: true }, parent);
+  assert.equal(approved.body.kid.policyRevision, 3);
+  assert.equal(approved.body.kid.appliedPolicyRevision, 2);
+  const retry = await call("PUT", `${parentPath}/policy`, edit, parent);
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.policyRevision, 3);
+  assert.equal(retry.body.policy.temporaryAllows.length, 1);
+});
+
+test("re-pairing clears applied evidence and invalidates the previous device", async () => {
+  const family = (await call("POST", "/families")).body;
+  const kid = (await call("POST", `/families/${family.familyId}/kids`, { name: "Leo" }, family.parentToken)).body;
+  const first = (await call("POST", "/pair", { code: kid.pairingCode })).body.deviceToken;
+  await call("POST", "/device/policy-applied", { policyRevision: 1 }, first);
+  const second = (await call("POST", "/pair", { code: kid.pairingCode })).body.deviceToken;
+  const activity = (await call("GET", `/families/${family.familyId}/kids/${kid.id}/activity`, undefined, family.parentToken)).body;
+  assert.equal(activity.policyRevision, 1);
+  assert.equal(activity.appliedPolicyRevision, null);
+  assert.equal(activity.policyAppliedAt, null);
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 1 }, first)).status, 401);
+  assert.equal((await call("POST", "/device/policy-applied", { policyRevision: 1 }, second)).status, 200);
+});
+
+test("older stored kids migrate to an unconfirmed first revision and delivery survives a restart", () => {
+  const directory = mkdtempSync(join(tmpdir(), "guidance-delivery-"));
+  const path = join(directory, "store.json");
+  try {
+    writeFileSync(path, JSON.stringify({ families: { family: {
+      id: "family", parentToken: "parent", createdAt: "2026-01-01T00:00:00Z", kids: [{
+        id: "kid", name: "Leo", pairingCode: "ABCDEF", deviceToken: "device",
+        policy: {}, lastHeartbeat: "2026-01-01T00:00:00Z", createdAt: "2026-01-01T00:00:00Z",
+      }],
+    } } }));
+    const store = new Store(path);
+    const kid = store.family("family")!.kids[0];
+    assert.equal(kid.policyRevision, 1);
+    assert.equal(kid.appliedPolicyRevision, null);
+    assert.equal(kid.policyAppliedAt, null);
+    assert.equal(JSON.parse(readFileSync(path, "utf8")).families.family.kids[0].policyRevision, 1);
+    store.recordPolicyApplied(kid, 1);
+    const defaults = { masterAIOff: false, categories: {}, siteOverrides: {}, schedules: [], guidedRules: { blockHomeworkOffloading: true, requireAttemptFirst: true, hideFinishedAnswers: true, globalInstructions: [] }, temporaryAllows: [] };
+    store.updatePolicy(kid, defaults, "migration-defaults");
+    assert.equal(kid.policyRevision, 1, "missing older fields normalize before comparing");
+    store.updatePolicy(kid, { ...defaults, masterAIOff: true }, "persisted-edit");
+    const reopened = new Store(path);
+    const restored = reopened.family("family")!.kids[0];
+    assert.equal(restored.policyRevision, 2);
+    assert.equal(restored.appliedPolicyRevision, 1);
+    assert.ok(restored.policyAppliedAt);
+    assert.equal(reopened.updatePolicy(restored, { ...defaults, masterAIOff: true }, "persisted-edit"), true);
+    assert.equal(restored.policyRevision, 2, "retry identity survives a restart");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

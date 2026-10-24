@@ -142,8 +142,21 @@ struct GuidanceAPI {
         let _: Empty = try await send("DELETE", "families/\(session.familyId)/kids/\(kidID)", token: session.parentToken)
     }
 
-    func savePolicy(_ policy: KidPolicy, kidID: String, session: FamilySession) async throws -> Kid {
-        try await send("PUT", "families/\(session.familyId)/kids/\(kidID)/policy", token: session.parentToken, body: json(policy))
+    func savePolicy(_ policy: KidPolicy, kidID: String, session: FamilySession, changeId: String) async throws -> Kid {
+        // Keep the policy body compatible with older servers, which ignore unknown keys.
+        struct Update: Encodable {
+            let policy: KidPolicy
+            let changeId: String
+            enum CodingKeys: String, CodingKey { case changeId }
+
+            func encode(to encoder: Encoder) throws {
+                try policy.encode(to: encoder)
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(changeId, forKey: .changeId)
+            }
+        }
+        return try await send("PUT", "families/\(session.familyId)/kids/\(kidID)/policy", token: session.parentToken,
+                              body: json(Update(policy: policy, changeId: changeId)))
     }
 
     func activity(kidID: String, session: FamilySession) async throws -> KidActivity {

@@ -47,6 +47,18 @@ KidPolicy {
 }
 ```
 
+### Rule delivery and retry states
+
+The parent app distinguishes saving a rule from installing it on the kid's phone:
+
+1. **Saving rules… / Waiting to save:** `FamilyStore` writes the pending policy to a durable `UserDefaults` queue before changing the local screen. Entries belong to a specific family and server address. Saves are debounced for 500 ms; connection failures and retryable server errors retry after 2, 4, 8, 16, then at most 30 seconds. Pending edits survive an app restart and resume for the matching family/server. Errors that need attention keep the edit and expose **Retry**.
+2. **Saved · waiting for phone:** the server accepted the policy. Each actual policy change, including a temporary approval, advances `policyRevision`; equivalent saves do not. A save carries a stable `changeId` across retries. The server retains the latest 100 edit fingerprints so a lost-response retry cannot duplicate a change or overwrite a newer one. This transport identifier is not part of `KidPolicy`.
+3. **Applied on [kid]'s phone:** the paired Safari extension cached the policy and successfully installed its network rules, then sent `POST /device/policy-applied` with the exact current `policyRevision`. The authenticated endpoint records `appliedPolicyRevision` and a server-owned `policyAppliedAt`. A policy download or heartbeat alone never confirms application; stale/future acknowledgements are rejected. New changes keep the older acknowledgement as history until the current revision is confirmed. Re-pairing clears the applied metadata.
+
+Delivery metadata is returned with parent kid/activity data, and `GET /device/policy` includes the revision. Older stored kids start at revision 1 with no application confirmation. Update the **app, backend, and Safari extension together**: older extensions cannot acknowledge installation and remain at **Saved · waiting for phone**.
+
+An application acknowledgement confirms installation by that paired extension. It does not prove that Safari website permissions are granted, that every chatbot's page selectors work, or that native AI apps are controlled. Validate website behavior separately.
+
 ### Resolver (one set of rules, two copies)
 
 `Extensions/GuidanceSafari/Resources/shared/resolver.js` decides a site's state. Precedence: **approved request → AI off → site override → active schedule → category**. Overlapping schedules use the strictest state. Windows with `end < start` run past midnight.
@@ -65,7 +77,7 @@ KidPolicy {
 
 ### iOS app (`GuideAI`)
 
-- `FamilyStore` is the single observable store. It caches kids, policy and catalog in `UserDefaults`, and debounces policy saves (500 ms).
+- `FamilyStore` is the single observable store. It caches kids, policy and catalog in `UserDefaults`, and maintains the durable policy save queue described above. Rules and Schedules show delivery status for each selected kid.
 - Tabs: **Rules** (AI-off switch, categories, homework rules, site exceptions), **Schedules**, **Activity**, **Setup** (pairing code, phone checklist, kids, server).
 - `LockView` with `ParentAuthenticationService` re-locks when the app goes to the background.
 

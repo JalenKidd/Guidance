@@ -13,6 +13,8 @@ import {
   familySchema,
   kidPolicySchema,
   pairSchema,
+  policyAppliedSchema,
+  policyUpdateSchema,
   requestDecisionSchema,
   signInSchema,
   suggestionSchema,
@@ -49,6 +51,9 @@ function publicKid(kid: Kid) {
     paired: Boolean(kid.deviceToken),
     lastHeartbeat: kid.lastHeartbeat ?? null,
     policy: currentPolicy(kid),
+    policyRevision: kid.policyRevision,
+    appliedPolicyRevision: kid.appliedPolicyRevision,
+    policyAppliedAt: kid.policyAppliedAt,
   };
 }
 
@@ -152,11 +157,14 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
   });
 
   app.put("/families/:familyId/kids/:kidId/policy", requireParent, requireKid, (req, res) => {
-    const parsed = kidPolicySchema.safeParse(req.body);
+    const parsed = policyUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid rules." });
     }
-    store.updatePolicy(res.locals.kid, parsed.data);
+    const { changeId, ...policy } = parsed.data;
+    if (!store.updatePolicy(res.locals.kid, policy, changeId)) {
+      return res.status(409).json({ error: "This change was already saved with different rules. Start a new change." });
+    }
     res.json(publicKid(res.locals.kid));
   });
 
@@ -168,6 +176,9 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
     res.json({
       lastHeartbeat: kid.lastHeartbeat ?? null,
       paired: Boolean(kid.deviceToken),
+      policyRevision: kid.policyRevision,
+      appliedPolicyRevision: kid.appliedPolicyRevision,
+      policyAppliedAt: kid.policyAppliedAt,
       counts,
       events,
       requests: store.requestsFor(kid.id),
@@ -224,8 +235,19 @@ export function createApp({ store, catalog, judge, responseJudge, moderator }: A
       kidName: kid.name,
       guardianName: store.familyOfKid(kid.id)?.parentName ?? null,
       policy: currentPolicy(kid),
+      policyRevision: kid.policyRevision,
       catalogVersion: catalog.version,
     });
+  });
+
+  app.post("/device/policy-applied", requireDevice, (req, res) => {
+    const parsed = policyAppliedSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Enter a valid policy revision." });
+    const kid = res.locals.kid as Kid;
+    if (!store.recordPolicyApplied(kid, parsed.data.policyRevision)) {
+      return res.status(409).json({ error: "The rules changed. Download and apply the latest rules before confirming.", policyRevision: kid.policyRevision });
+    }
+    res.json({ policyRevision: kid.policyRevision, appliedPolicyRevision: kid.appliedPolicyRevision, policyAppliedAt: kid.policyAppliedAt });
   });
 
   /**

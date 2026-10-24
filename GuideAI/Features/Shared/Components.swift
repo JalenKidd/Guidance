@@ -1,5 +1,89 @@
 import SwiftUI
 
+/// Saved means the server accepted the edit. Applied requires an explicit Safari acknowledgement.
+struct PolicyDeliveryBanner: View {
+    @EnvironmentObject private var store: FamilyStore
+
+    var body: some View {
+        if !store.targetKids.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(store.targetKids) { kid in
+                    row(kid, state: store.deliveryState(for: kid))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(GuideTheme.pageBackground)
+        }
+    }
+
+    private func row(_ kid: Kid, state: PolicyDeliveryState) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            if state == .saving {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: symbol(state))
+                    .foregroundStyle(color(state))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title(kid, state: state)).font(.subheadline.weight(.semibold))
+                Text(detail(kid, state: state)).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if state == .waitingToRetry || state == .needsAttention {
+                Button("Retry") { store.retryPolicy(for: kid.id) }
+                    .font(.subheadline.weight(.semibold))
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func title(_ kid: Kid, state: PolicyDeliveryState) -> String {
+        let prefix = store.isAllKids ? "\(kid.name): " : ""
+        switch state {
+        case .saving: return prefix + "Saving rules…"
+        case .waitingToRetry: return prefix + "Waiting to save"
+        case .needsAttention: return prefix + "Rules couldn't be saved"
+        case .saved: return prefix + "Saved · waiting for phone"
+        case .applied: return "Applied on \(kid.name)'s phone"
+        }
+    }
+
+    private func detail(_ kid: Kid, state: PolicyDeliveryState) -> String {
+        switch state {
+        case .saving:
+            return "Your changes are kept on this phone while they save."
+        case .waitingToRetry:
+            return "Your changes are kept on this phone. We'll retry automatically."
+        case .needsAttention:
+            return "Your changes are kept on this phone. Check your connection or sign-in, then retry."
+        case .saved:
+            return kid.paired ? "Open Safari on that phone to apply the latest rules." : "Pair \(kid.name)'s phone in Setup to apply these rules."
+        case .applied(let date):
+            return date.map { "Safari confirmed these rules \($0.formatted(.relative(presentation: .named)))." }
+                ?? "Safari confirmed it installed these rules."
+        }
+    }
+
+    private func symbol(_ state: PolicyDeliveryState) -> String {
+        switch state {
+        case .saving: return "arrow.triangle.2.circlepath"
+        case .waitingToRetry, .needsAttention: return "exclamationmark.triangle.fill"
+        case .saved: return "clock"
+        case .applied: return "checkmark.circle.fill"
+        }
+    }
+
+    private func color(_ state: PolicyDeliveryState) -> Color {
+        switch state {
+        case .waitingToRetry, .needsAttention: return .orange
+        case .applied: return GuideTheme.success
+        default: return .secondary
+        }
+    }
+}
+
 struct SectionLabel: View {
     let title: String
 

@@ -81,6 +81,16 @@ Check it: open `quillbot.com` in Safari. You should get the Guidance blocked pag
 | On the blocked quillbot page, tap **Ask for permission**, give a reason, send | Request appears in Activity → **Approve** → the page opens quillbot within a few seconds |
 | Activity tab | Shows requests, safety alerts, blocked sites, stopped prompts, hidden answers, last check-in |
 
+### Check rule delivery and recovery
+
+Install matching updated versions of the **parent app, backend, and Safari extension** before testing. An older extension can download rules but cannot confirm installation, so the parent continues to see **Saved · waiting for phone**.
+
+1. **Save while the kid's phone is offline.** Put only the kid's phone in Airplane Mode, then change a category on the online parent phone. Expect **Saving rules…**, then **Saved · waiting for phone**. It must not say Applied merely because the save succeeded.
+2. **Confirm installation.** Reconnect the kid's phone and open Safari. After the next sync (normally about 15 seconds with a page open), the parent should show **Applied on [kid]'s phone**. Open the affected website and check that the changed rule works. The status confirms that Safari installed the current version; website permissions and actual site behavior still need this check. It does not cover native AI apps.
+3. **Recover an unsaved edit after restart.** Stop the backend, change a rule, and expect **Waiting to save** with **Retry**. Close and reopen the parent app while the server is still stopped: the edit must remain visible and pending. Restart the backend; automatic retries back off from 2 seconds to a maximum of 30 seconds. Expect Saved, then Applied after Safari syncs. Pending edits are kept for their original family/server, so reconnect to the same account and address.
+4. **Keep the final rapid edit.** With the server stopped, change the same setting several times and finish on a known value. Restart the server and verify that the final value is saved and reaches Safari. Retrying an edit uses its original change identifier, so a lost response does not create another revision or undo a newer confirmed save.
+5. **Reset confirmation when re-pairing.** Pair the kid again with the same code. The earlier Applied confirmation must clear; it returns only after the newly paired extension installs and acknowledges the current rules.
+
 ## How rules are decided
 
 From strongest to weakest:

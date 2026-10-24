@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import os
 
 /// Source of truth for the parent console. The server owns the data; this keeps
@@ -13,13 +14,29 @@ final class FamilyStore: ObservableObject {
     @Published private(set) var activity: [String: KidActivity] = [:]
     @Published var selectedKidID: String?
     @Published private(set) var isLoading = false
-    @Published private(set) var isSaving = false
+    @Published private var savingKids: Set<String> = []
+    @Published private var queuedPolicies: [String: PendingPolicySave] = [:]
     @Published var errorMessage: String?
     @Published var isUnlocked = false
 
     private let logger = Logger(subsystem: AppConfig.bundleIdentifier, category: "FamilyStore")
     private let defaults: UserDefaults
+    private let apiOverride: GuidanceAPI?
+    private let saveDebounce: Duration
+    private let retryBaseDelay: TimeInterval
     private var pendingSaves: [String: Task<Void, Never>] = [:]
+    private var workerIDs: [String: UUID] = [:]
+    private var sessionGeneration = UUID()
+
+    private struct PendingPolicySave: Codable {
+        let familyId: String
+        let serverURL: String
+        let policy: KidPolicy
+        let changeId: String
+        var attempts = 0
+        var error: String?
+        var retryable = true
+    }
 
     private enum Key {
         static let session = "guidance.session"
@@ -28,18 +45,37 @@ final class FamilyStore: ObservableObject {
         static let selectedKid = "guidance.selectedKid"
         static let parentName = "guidance.parentName"
         static let alertsSeen = "guidance.alertsSeenAt"
+        static let pendingPolicies = "guidance.pendingPolicies"
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, api: GuidanceAPI? = nil,
+         saveDebounce: Duration = .milliseconds(500), retryBaseDelay: TimeInterval = 2) {
         self.defaults = defaults
+        self.apiOverride = api
+        self.saveDebounce = saveDebounce
+        self.retryBaseDelay = retryBaseDelay
         session = load(FamilySession.self, Key.session)
         kids = load([Kid].self, Key.kids) ?? []
         catalog = load(AICatalog.self, Key.catalog)
         parentName = defaults.string(forKey: Key.parentName)
         selectedKidID = defaults.string(forKey: Key.selectedKid) ?? kids.first?.id
+        queuedPolicies = load([String: PendingPolicySave].self, Key.pendingPolicies) ?? [:]
+        for index in kids.indices {
+            if let pending = pendingPolicy(for: kids[index].id) { kids[index].policy = pending.policy }
+        }
+        resumePendingSaves()
     }
 
-    var api: GuidanceAPI { GuidanceAPI() }
+    var api: GuidanceAPI { apiOverride ?? GuidanceAPI() }
+    var isSaving: Bool { !savingKids.isEmpty }
+
+    private var serverURL: String { api.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+
+    private func pendingPolicy(for kidID: String) -> PendingPolicySave? {
+        guard let pending = queuedPolicies[kidID], pending.familyId == session?.familyId,
+              pending.serverURL == serverURL else { return nil }
+        return pending
+    }
 
     /// Selection value meaning "edit every kid at once".
     static let allKidsID = "all"
@@ -75,15 +111,22 @@ final class FamilyStore: ObservableObject {
     // MARK: - Loading
 
     func refresh() async {
+        let generation = sessionGeneration
+        let activeSession = session
+        let requestAPI = api
+        let origin = serverURL
+        resumePendingSaves()
         isLoading = true
-        defer { isLoading = false }
+        defer { if generation == sessionGeneration { isLoading = false } }
         do {
-            let fresh = try await api.catalog()
+            let fresh = try await requestAPI.catalog()
+            guard generation == sessionGeneration, session == activeSession, origin == serverURL else { return }
             catalog = fresh
             save(fresh, Key.catalog)
 
-            guard let session else { return }
-            let family = try await api.family(session)
+            guard let activeSession else { return }
+            let family = try await requestAPI.family(activeSession)
+            guard generation == sessionGeneration, session == activeSession, origin == serverURL else { return }
             apply(kids: family.kids)
             applyParentName(family.parentName)
             if let kid = selectedKid {
@@ -91,16 +134,29 @@ final class FamilyStore: ObservableObject {
             }
             errorMessage = nil
         } catch let error as GuidanceAPIError where error.isUnauthorized {
+            guard generation == sessionGeneration, origin == serverURL else { return }
             errorMessage = "This family was removed from the server. Set up Guidance again in Setup."
         } catch {
+            guard generation == sessionGeneration, origin == serverURL else { return }
             errorMessage = error.localizedDescription
         }
     }
 
     func refreshActivity(for kidID: String) async {
         guard let session else { return }
+        let generation = sessionGeneration
+        let requestAPI = api
+        let origin = serverURL
         do {
-            activity[kidID] = try await api.activity(kidID: kidID, session: session)
+            let fresh = try await requestAPI.activity(kidID: kidID, session: session)
+            guard generation == sessionGeneration, self.session == session, origin == serverURL else { return }
+            activity[kidID] = fresh
+            if let index = kids.firstIndex(where: { $0.id == kidID }),
+               fresh.policyRevision != nil, fresh.policyRevision == kids[index].policyRevision {
+                kids[index].appliedPolicyRevision = fresh.appliedPolicyRevision
+                kids[index].policyAppliedAt = fresh.policyAppliedAt
+                save(kids, Key.kids)
+            }
         } catch {
             logger.error("Activity refresh failed: \(error.localizedDescription)")
         }
@@ -131,22 +187,57 @@ final class FamilyStore: ObservableObject {
 
     /// Refresh activity for every kid, so requests and alerts show up while the app is open.
     func refreshAllActivity() async {
+        guard let session else { return }
+        let generation = sessionGeneration
+        let requestAPI = api
+        let origin = serverURL
+        resumePendingSaves()
         for kid in kids {
             await refreshActivity(for: kid.id)
+            guard generation == sessionGeneration, origin == serverURL else { return }
+        }
+        // An approval or a second parent can change the server's policy while this app is open.
+        if kids.contains(where: { (activity[$0.id]?.policyRevision ?? 0) > ($0.policyRevision ?? 0) }) {
+            if let family = try? await requestAPI.family(session), generation == sessionGeneration,
+               self.session == session, origin == serverURL {
+                apply(kids: family.kids)
+            }
         }
     }
 
     func decide(_ request: AccessRequest, approve: Bool, minutes: Int? = nil, kidID: String) async {
         guard let session else { return }
+        let generation = sessionGeneration
+        let requestAPI = api
+        let origin = serverURL
+        // An old queued full-policy save must not remove a newly approved exception.
+        while pendingPolicy(for: kidID) != nil {
+            if pendingPolicy(for: kidID)?.error != nil {
+                errorMessage = "Save the waiting rule changes before answering this request."
+                return
+            }
+            scheduleSave(for: kidID, after: .zero)
+            await pendingSaves[kidID]?.value
+            guard generation == sessionGeneration, origin == serverURL else { return }
+        }
         do {
-            let result = try await api.decideRequest(request.id, approve: approve, minutes: minutes, kidID: kidID, session: session)
+            let result = try await requestAPI.decideRequest(request.id, approve: approve, minutes: minutes, kidID: kidID, session: session)
+            guard generation == sessionGeneration, self.session == session, origin == serverURL else { return }
             if let index = kids.firstIndex(where: { $0.id == kidID }) {
-                kids[index] = result.kid
+                kids[index] = merging(result.kid)
                 save(kids, Key.kids)
+            }
+            if approve,
+               let allowance = result.kid.policy.temporaryAllows.first(where: { $0.requestId == request.id }) {
+                updatePolicy(for: kidID) { policy in
+                    policy.temporaryAllows.removeAll { $0.domain == allowance.domain }
+                    policy.temporaryAllows.append(allowance)
+                }
             }
             await refreshActivity(for: kidID)
             errorMessage = nil
         } catch {
+            guard generation == sessionGeneration, origin == serverURL else { return }
             errorMessage = error.localizedDescription
             await refreshActivity(for: kidID)
         }
@@ -166,6 +257,7 @@ final class FamilyStore: ObservableObject {
         defer { isLoading = false }
         do {
             let newSession = try await api.createFamily(parentName: parentName)
+            stopSaveWorkers()
             applyParentName(parentName)
             session = newSession
             save(newSession, Key.session)
@@ -202,6 +294,11 @@ final class FamilyStore: ObservableObject {
         guard let session else { return }
         do {
             try await api.removeKid(kidID, session: session)
+            pendingSaves.removeValue(forKey: kidID)?.cancel()
+            workerIDs.removeValue(forKey: kidID)
+            savingKids.remove(kidID)
+            queuedPolicies.removeValue(forKey: kidID)
+            save(queuedPolicies, Key.pendingPolicies)
             apply(kids: kids.filter { $0.id != kidID })
             if selectedKidID == kidID { select(kids.first?.id) }
             errorMessage = nil
@@ -238,6 +335,7 @@ final class FamilyStore: ObservableObject {
         defer { isLoading = false }
         do {
             let result = try await api.signIn(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password)
+            stopSaveWorkers()
             session = result.session
             save(result.session, Key.session)
             applyParentName(result.parentName)
@@ -272,12 +370,14 @@ final class FamilyStore: ObservableObject {
 
     /// Forget this family on this device. The server copy stays.
     func signOut() {
+        stopSaveWorkers()
         session = nil
         applyParentName(nil)
         kids = []
         activity = [:]
         selectedKidID = nil
         isUnlocked = false
+        // Keep queued changes scoped to this family and server; signing back in can resume them.
         for key in [Key.session, Key.kids, Key.selectedKid] { defaults.removeObject(forKey: key) }
     }
 
@@ -295,39 +395,136 @@ final class FamilyStore: ObservableObject {
         }
     }
 
-    /// Change a kid's rules. The UI updates immediately; the save is debounced so
-    /// flicking through category settings sends one request.
+    /// Queue the latest edit durably before attempting a network save.
     func updatePolicy(for kidID: String, _ change: (inout KidPolicy) -> Void) {
-        guard let index = kids.firstIndex(where: { $0.id == kidID }) else { return }
+        guard let session, let index = kids.firstIndex(where: { $0.id == kidID }) else { return }
         var policy = kids[index].policy
         change(&policy)
         guard policy != kids[index].policy else { return }
+        queuedPolicies[kidID] = PendingPolicySave(familyId: session.familyId, serverURL: serverURL,
+                                                  policy: policy, changeId: UUID().uuidString)
+        // Write the queue first so a restart between writes cannot lose the edit.
+        save(queuedPolicies, Key.pendingPolicies)
         kids[index].policy = policy
         save(kids, Key.kids)
+        scheduleSave(for: kidID, after: saveDebounce)
+    }
 
-        pendingSaves[kidID]?.cancel()
-        pendingSaves[kidID] = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled else { return }
-            await self?.pushPolicy(for: kidID)
+    func deliveryState(for kid: Kid) -> PolicyDeliveryState {
+        if let pending = pendingPolicy(for: kid.id) {
+            if savingKids.contains(kid.id) || pending.error == nil { return .saving }
+            return pending.retryable ? .waitingToRetry : .needsAttention
+        }
+        // Activity polling can confirm delivery without requiring a pull-to-refresh.
+        let latest = activity[kid.id]
+        if let revision = kid.policyRevision {
+            if latest?.policyRevision == revision {
+                if latest?.appliedPolicyRevision == revision { return .applied(latest?.policyAppliedAt) }
+                return .saved
+            }
+            if (latest?.policyRevision ?? 0) > revision { return .saved }
+            if kid.appliedPolicyRevision == revision { return .applied(kid.policyAppliedAt) }
+        }
+        return .saved
+    }
+
+    func retryPolicy(for kidID: String) {
+        guard var pending = pendingPolicy(for: kidID), !savingKids.contains(kidID) else { return }
+        pending.error = nil
+        pending.attempts = 0
+        pending.retryable = true
+        queuedPolicies[kidID] = pending
+        save(queuedPolicies, Key.pendingPolicies)
+        pendingSaves.removeValue(forKey: kidID)?.cancel()
+        workerIDs.removeValue(forKey: kidID)
+        scheduleSave(for: kidID, after: .zero)
+    }
+
+    private func resumePendingSaves() {
+        for kid in kids {
+            guard let pending = pendingPolicy(for: kid.id), pending.retryable else { continue }
+            scheduleSave(for: kid.id, after: saveDebounce)
         }
     }
 
-    private func pushPolicy(for kidID: String) async {
-        guard let session, let kid = kids.first(where: { $0.id == kidID }) else { return }
-        isSaving = true
-        defer { isSaving = false }
+    /// One worker per kid: new edits replace the queued snapshot, never cancel a PUT in flight.
+    private func scheduleSave(for kidID: String, after delay: Duration) {
+        guard pendingSaves[kidID] == nil, pendingPolicy(for: kidID) != nil else { return }
+        let workerID = UUID()
+        let generation = sessionGeneration
+        workerIDs[kidID] = workerID
+        pendingSaves[kidID] = Task { [weak self] in
+            do { try await Task.sleep(for: delay) } catch {
+                self?.finishSaveWorker(for: kidID, workerID: workerID)
+                return
+            }
+            guard !Task.isCancelled else {
+                self?.finishSaveWorker(for: kidID, workerID: workerID)
+                return
+            }
+            await self?.pushPolicy(for: kidID, workerID: workerID, generation: generation)
+        }
+    }
+
+    private func pushPolicy(for kidID: String, workerID: UUID, generation: UUID) async {
+        var nextDelay: Duration?
+        defer { finishSaveWorker(for: kidID, workerID: workerID, nextDelay: nextDelay) }
+        guard generation == sessionGeneration, workerIDs[kidID] == workerID,
+              let session, let pending = pendingPolicy(for: kidID) else { return }
+        let requestAPI = api
+        let origin = serverURL
+        savingKids.insert(kidID)
         do {
-            let saved = try await api.savePolicy(kid.policy, kidID: kidID, session: session)
-            // Only take the server copy if nothing changed locally while saving.
-            if let index = kids.firstIndex(where: { $0.id == kidID }), kids[index].policy == kid.policy {
-                kids[index] = saved
+            let saved = try await requestAPI.savePolicy(pending.policy, kidID: kidID, session: session, changeId: pending.changeId)
+            guard generation == sessionGeneration, self.session == session,
+                  workerIDs[kidID] == workerID, origin == serverURL else { return }
+            nextDelay = saveDebounce
+            if pendingPolicy(for: kidID)?.changeId == pending.changeId {
+                queuedPolicies.removeValue(forKey: kidID)
+            }
+            if let index = kids.firstIndex(where: { $0.id == kidID }) {
+                kids[index] = merging(saved)
                 save(kids, Key.kids)
             }
-            errorMessage = nil
+            // Cache the accepted revision before clearing the durable queue. If the
+            // app stops between writes, replaying the same changeId is harmless.
+            save(queuedPolicies, Key.pendingPolicies)
         } catch {
-            errorMessage = "Couldn't save rules: \(error.localizedDescription)"
+            guard generation == sessionGeneration, self.session == session,
+                  workerIDs[kidID] == workerID, origin == serverURL else { return }
+            nextDelay = saveDebounce
+            if var latest = pendingPolicy(for: kidID), latest.changeId == pending.changeId {
+                latest.attempts += 1
+                latest.error = error.localizedDescription
+                if case GuidanceAPIError.server(let status, _) = error {
+                    latest.retryable = status >= 500 || status == 408 || status == 429
+                } else {
+                    latest.retryable = true
+                }
+                queuedPolicies[kidID] = latest
+                save(queuedPolicies, Key.pendingPolicies)
+                nextDelay = .seconds(min(30, retryBaseDelay * pow(2, Double(min(latest.attempts - 1, 5)))))
+            }
         }
+    }
+
+    private func finishSaveWorker(for kidID: String, workerID: UUID, nextDelay: Duration? = nil) {
+        guard workerIDs[kidID] == workerID else { return }
+        savingKids.remove(kidID)
+        pendingSaves.removeValue(forKey: kidID)
+        workerIDs.removeValue(forKey: kidID)
+        if let nextDelay, let pending = pendingPolicy(for: kidID), pending.retryable {
+            scheduleSave(for: kidID, after: nextDelay)
+        }
+    }
+
+    private func stopSaveWorkers() {
+        sessionGeneration = UUID()
+        for task in pendingSaves.values { task.cancel() }
+        pendingSaves.removeAll()
+        workerIDs.removeAll()
+        savingKids.removeAll()
+        isLoading = false
     }
 
     func suggestSite(domain: String, categoryID: String?, note: String?) async -> Bool {
@@ -344,12 +541,24 @@ final class FamilyStore: ObservableObject {
     // MARK: - Cache
 
     private func apply(kids newKids: [Kid]) {
-        kids = newKids
-        save(newKids, Key.kids)
+        kids = newKids.map(merging)
+        save(kids, Key.kids)
+        resumePendingSaves()
         let keepsAll = selectedKidID == Self.allKidsID && newKids.count > 1
         if !keepsAll && (selectedKidID == nil || !newKids.contains(where: { $0.id == selectedKidID })) {
             select(newKids.first?.id)
         }
+    }
+
+    /// Preserve local edits and newer save responses when a stale refresh finishes later.
+    private func merging(_ serverKid: Kid) -> Kid {
+        var merged = serverKid
+        if let local = kids.first(where: { $0.id == serverKid.id }),
+           (local.policyRevision ?? 0) > (serverKid.policyRevision ?? 0) {
+            merged = local
+        }
+        if let pending = pendingPolicy(for: serverKid.id) { merged.policy = pending.policy }
+        return merged
     }
 
     private func load<T: Decodable>(_ type: T.Type, _ key: String) -> T? {

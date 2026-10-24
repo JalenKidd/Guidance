@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { KidPolicy } from "./validation.js";
+import { kidPolicySchema, type KidPolicy } from "./validation.js";
 
 export interface Kid {
   id: string;
@@ -10,6 +10,14 @@ export interface Kid {
   /** Set once the kid's Safari extension pairs; the extension authenticates with it. */
   deviceToken?: string;
   policy: KidPolicy;
+  /** A save is distinct from the paired extension confirming that it installed it. */
+  policyRevision: number;
+  appliedPolicyRevision: number | null;
+  policyAppliedAt: string | null;
+  /** An edit's stable identifier makes a retried save safe after a lost response. */
+  lastPolicyChangeId?: string;
+  lastPolicyChangeFingerprint?: string;
+  recentPolicyChanges?: { id: string; fingerprint: string }[];
   lastHeartbeat?: string;
   createdAt: string;
 }
@@ -76,6 +84,18 @@ const MAX_PENDING_REQUESTS_PER_KID = 10;
 const MAX_REQUESTS_PER_KID = 100;
 const PAIRING_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I
 
+/** Fill older policy defaults and ignore object-key insertion order when comparing saves. */
+function policyFingerprint(policy: KidPolicy): string {
+  const canonical = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
+    }
+    return value;
+  };
+  return createHash("sha256").update(JSON.stringify(canonical(kidPolicySchema.parse(policy)))).digest("hex");
+}
+
 export function newToken(): string {
   return randomBytes(24).toString("base64url");
 }
@@ -96,6 +116,17 @@ export class Store {
   constructor(private readonly path?: string) {
     if (path && existsSync(path)) {
       this.data = { ...this.data, ...JSON.parse(readFileSync(path, "utf8")) };
+      for (const family of Object.values(this.data.families)) {
+        for (const kid of family.kids) {
+          // Existing heartbeats/downloads are not evidence that the rules were applied.
+          kid.policyRevision = Number.isSafeInteger(kid.policyRevision) && kid.policyRevision > 0 ? kid.policyRevision : 1;
+          const validApplied = Number.isSafeInteger(kid.appliedPolicyRevision) && (kid.appliedPolicyRevision ?? 0) > 0 && kid.appliedPolicyRevision! <= kid.policyRevision;
+          kid.appliedPolicyRevision = validApplied ? kid.appliedPolicyRevision : null;
+          kid.policyAppliedAt = validApplied && typeof kid.policyAppliedAt === "string" && Number.isFinite(Date.parse(kid.policyAppliedAt)) ? kid.policyAppliedAt : null;
+          if (!kid.policyAppliedAt) kid.appliedPolicyRevision = null;
+        }
+      }
+      this.persist();
     }
   }
 
@@ -149,7 +180,11 @@ export class Store {
   addKid(family: Family, name: string, policy: KidPolicy): Kid {
     let code = newPairingCode();
     while (this.kidByPairingCode(code)) code = newPairingCode();
-    const kid: Kid = { id: randomUUID(), name, pairingCode: code, policy, createdAt: new Date().toISOString() };
+    const kid: Kid = {
+      id: randomUUID(), name, pairingCode: code, policy,
+      policyRevision: 1, appliedPolicyRevision: null, policyAppliedAt: null,
+      createdAt: new Date().toISOString(),
+    };
     family.kids.push(kid);
     this.persist();
     return kid;
@@ -164,9 +199,26 @@ export class Store {
     return family.kids.length !== before;
   }
 
-  updatePolicy(kid: Kid, policy: KidPolicy) {
-    kid.policy = policy;
+  /** False means an edit id was reused for different content. */
+  updatePolicy(kid: Kid, policy: KidPolicy, changeId?: string): boolean {
+    const fingerprint = policyFingerprint(policy);
+    if (changeId) {
+      const previous = kid.recentPolicyChanges?.find((change) => change.id === changeId);
+      if (previous) return previous.fingerprint === fingerprint;
+      if (kid.lastPolicyChangeId === changeId) return kid.lastPolicyChangeFingerprint === fingerprint;
+    }
+    if (policyFingerprint(kid.policy) !== fingerprint) {
+      kid.policy = kidPolicySchema.parse(policy);
+      kid.policyRevision += 1;
+    }
+    if (changeId) {
+      kid.lastPolicyChangeId = changeId;
+      kid.lastPolicyChangeFingerprint = fingerprint;
+      // Keep retries safe across restarts/other parent edits without unbounded storage.
+      kid.recentPolicyChanges = [...(kid.recentPolicyChanges ?? []), { id: changeId, fingerprint }].slice(-100);
+    }
     this.persist();
+    return true;
   }
 
   kidByPairingCode(code: string): Kid | undefined {
@@ -189,6 +241,8 @@ export class Store {
   pairDevice(kid: Kid): string {
     kid.deviceToken = newToken();
     kid.lastHeartbeat = new Date().toISOString();
+    kid.appliedPolicyRevision = null;
+    kid.policyAppliedAt = null;
     this.persist();
     return kid.deviceToken;
   }
@@ -196,6 +250,17 @@ export class Store {
   recordHeartbeat(kid: Kid, at = new Date().toISOString()) {
     kid.lastHeartbeat = at;
     this.persist();
+  }
+
+  /** Only the current paired device can call this through the device API. */
+  recordPolicyApplied(kid: Kid, policyRevision: number): boolean {
+    if (policyRevision !== kid.policyRevision) return false;
+    if (kid.appliedPolicyRevision !== policyRevision) {
+      kid.appliedPolicyRevision = policyRevision;
+      kid.policyAppliedAt = new Date().toISOString();
+      this.persist();
+    }
+    return true;
   }
 
   addEvents(events: Omit<ActivityEvent, "id">[]) {

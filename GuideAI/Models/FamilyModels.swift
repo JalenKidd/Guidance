@@ -191,6 +191,18 @@ struct Kid: Codable, Equatable, Identifiable {
     var paired: Bool
     var lastHeartbeat: Date?
     var policy: KidPolicy
+    /// A download or heartbeat is not an acknowledgement that Safari installed these rules.
+    var policyRevision: Int? = nil
+    var appliedPolicyRevision: Int? = nil
+    var policyAppliedAt: Date? = nil
+}
+
+enum PolicyDeliveryState: Equatable {
+    case saving
+    case waitingToRetry
+    case needsAttention
+    case saved
+    case applied(Date?)
 }
 
 struct AICategory: Codable, Equatable, Identifiable {
@@ -272,6 +284,9 @@ struct KidActivity: Codable, Equatable {
     let counts: [String: Int]
     let events: [ActivityEvent]
     let requests: [AccessRequest]
+    let policyRevision: Int?
+    let appliedPolicyRevision: Int?
+    let policyAppliedAt: Date?
 
     func count(_ kind: ActivityEvent.Kind) -> Int { counts[kind.rawValue] ?? 0 }
 
@@ -285,6 +300,9 @@ struct KidActivity: Codable, Equatable {
         counts = try c.decode([String: Int].self, forKey: .counts)
         events = try c.decode([ActivityEvent].self, forKey: .events)
         requests = try c.decodeIfPresent([AccessRequest].self, forKey: .requests) ?? []
+        policyRevision = try c.decodeIfPresent(Int.self, forKey: .policyRevision)
+        appliedPolicyRevision = try c.decodeIfPresent(Int.self, forKey: .appliedPolicyRevision)
+        policyAppliedAt = try c.decodeIfPresent(Date.self, forKey: .policyAppliedAt)
     }
 }
 

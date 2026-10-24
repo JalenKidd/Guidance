@@ -56,6 +56,15 @@ export const kidPolicySchema = z.object({
 export type KidPolicy = z.infer<typeof kidPolicySchema>;
 export type GuidedRules = KidPolicy["guidedRules"];
 
+/** Transport metadata stays separate from the actual rule policy. */
+export const policyUpdateSchema = kidPolicySchema.extend({
+  changeId: z.string().trim().min(1).max(128).optional(),
+});
+
+export const policyAppliedSchema = z.object({
+  policyRevision: z.number().int().positive().safe(),
+});
+
 export const familySchema = z.object({
   parentName: z.string().trim().min(1).max(40).optional(),
 });
