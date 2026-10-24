@@ -29,11 +29,11 @@ Data is saved in `Backend/functions/data/store.json` (git-ignored).
 open GuideAI.xcodeproj
 ```
 
-1. In the toolbar, choose the **GuideAI Demo** scheme. It builds the app plus the Guidance Safari extension, and is signed with the free Personal Team.
+1. In the toolbar, choose the **GuideAI** scheme. It builds the app plus the Guidance Safari extension, and is signed with the free Personal Team.
 2. Choose your iPhone or a simulator → **Run**.
 3. On iPhone, if the first launch is blocked: **Settings → General → VPN & Device Management → Developer App → Trust**, then Run again.
 
-> The `GuideAI` scheme is the older Family Controls build, which needs a paid Apple Developer Program team. You don't need it.
+> On your own Apple account, set **Signing & Capabilities → Team** for the GuideAI and GuidanceSafari targets. If the bundle ID is taken, change `com.cac.guideai` (and the extension's `com.cac.guideai.Safari`) to something unique. The Simulator needs no signing.
 
 If the project ever looks broken, regenerate it (this adds new source files automatically):
 
@@ -49,7 +49,7 @@ Or choose **New family**:
 
 1. Open Guidance, type your kid's name → **Create family**.
 2. **On an iPhone:** open **Server address** first and enter your Mac's Wi-Fi address, e.g. `http://192.168.1.10:8080` (find it with `ipconfig getifaddr en0`). Tap **Test connection**. In the Simulator you can leave it empty.
-3. The **Rules** tab shows every AI category. Defaults: Chatbots = Guided, Essay / Humanizers / Math / Homework / Companions = Block, Image and Learning-focused AI = Allow.
+3. The **Home** tab shows every AI category, with its apps in a row underneath. Tap an app for who it's for, its own rule, and custom instructions. Defaults: Chatbots = Guided, Essay / Humanizers / Math / Homework / Companions = Block, Image and Learning-focused AI = Allow.
 
 The app locks whenever it goes to the background. Unlocking needs Face ID or the passcode, so a kid who opens it sees only "AI is guided on this phone."
 
@@ -71,12 +71,12 @@ Check it: open `quillbot.com` in Safari. You should get the Guidance blocked pag
 | Try this | Expected |
 |---|---|
 | Open `quillbot.com` | Blocked page ("Essay & writing AI") |
-| Rules → Essay & writing AI → **Allow**, wait about 15 seconds (an open blocked page reopens the site by itself) | Site loads |
+| Home → Essay & writing AI → **Allow**, wait about 15 seconds (an open blocked page reopens the site by itself) | Site loads |
 | On chatgpt.com, send "write my 5 paragraph essay on the Civil War" | Prompt is stopped; "Ask this instead" offers an outline prompt |
 | Send "Explain what caused the Civil War" | Goes through with "(Parent rules from Guidance: …)" attached |
-| Rules → **Turn off all AI** | chatgpt.com and every other AI site show the blocked page |
+| Home → **Turn off all AI** | chatgpt.com and every other AI site show the blocked page |
 | Schedules → + → Bedtime, set it to start a few minutes from now | AI is blocked when it starts |
-| Homework rules → turn **Stop homework offloading** off (leave **Hide finished answers** on). On chatgpt.com, send "write a 5 paragraph essay on the Civil War for my class" | ChatGPT writes it, but the answer stays blurred and a panel shows hints instead |
+| Home → Rules for LLMs (Chatbots) → turn **Stop homework offloading** off (leave **Hide finished answers** on). On chatgpt.com, send "write a 5 paragraph essay on the Civil War for my class" | ChatGPT writes it, but the answer stays blurred and a panel shows hints instead |
 | Send "how do i hide a vape from my parents" | Goes through normally; a Vaping alert appears in the app's Activity tab (badge on the tab) |
 | On the blocked quillbot page, tap **Ask for permission**, give a reason, send | Request appears in Activity → **Approve** → the page opens quillbot within a few seconds |
 | Activity tab | Shows requests, safety alerts, blocked sites, stopped prompts, hidden answers, last check-in |

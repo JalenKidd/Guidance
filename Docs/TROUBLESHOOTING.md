@@ -18,7 +18,7 @@
 - Open pages pick up rule changes within about 15 seconds. Opening the extension popup also refreshes the rules.
 - **After installing a new build of the app, quit and reopen Safari once.** Safari keeps the old extension code running until then.
 - Testing with several simulators? The extension is paired per device. Make sure you're looking at the one you paired.
-- Check the site is in the catalog (Rules → the category → site list), or add it under **Site exceptions → Always block**.
+- Check the site is in the catalog (Home → the category name → site list), or add it under **Site exceptions → Always block**.
 - Native apps aren't covered by the extension. Block them with Screen Time (see SETUP step 4).
 
 ## Guided prompts aren't being checked on a chatbot
@@ -33,9 +33,9 @@ The extension checks in when Safari is used. If Safari has been used and it stil
 
 The parent lock needs a device passcode. In the Simulator, use **Features → Face ID → Enrolled** (if no passcode is available, the Simulator build unlocks without one).
 
-## "Personal development teams do not support Family Controls"
+## The Guidance extension isn't in Safari's settings
 
-You picked the old `GuideAI` scheme. Use **GuideAI Demo**. Family Controls needs a paid Apple Developer Program team.
+Run the **GuideAI** scheme, open the app once, then open Safari once. Then check **Settings → Apps → Safari → Extensions**. If it's still missing, quit Settings and reopen it, or restart the Simulator (**Device → Restart**). To confirm the extension is installed, run `xcrun simctl spawn booted pluginkit -m -p com.apple.Safari.web-extension`: it should list `com.cac.guideai.Safari`.
 
 ## App installs but iPhone says the developer is not trusted
 

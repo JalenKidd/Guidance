@@ -90,4 +90,4 @@ An application acknowledgement confirms installation by that paired extension. I
 
 ## Not used in the free build
 
-`Extensions/GuideAIShield*` and `GuideAIDeviceActivityMonitor` are the Apple Family Controls extensions from the earlier version. They build only in the `GuideAI` scheme, which needs a paid team, and are kept for the roadmap.
+`Extensions/GuideAIShield*` and `GuideAIDeviceActivityMonitor` are the Apple Family Controls extensions from the earlier version. They need a paid team, so they're left out of the Xcode project and kept for the roadmap (with `GuideAI/GuideAI.entitlements`).

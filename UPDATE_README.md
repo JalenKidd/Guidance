@@ -18,8 +18,8 @@ It all runs on a **free Apple account**. Enforcement is a Safari Web Extension i
 
 ## Added since: hidden answers, safety alerts, Ask a parent
 
-- **Hide finished answers.** On Guided chatbots, if the AI answers a schoolwork prompt with a finished essay or worked-out homework, Guidance blurs it and shows hints instead. Answers to schoolwork prompts stay blurred while they load, so they can't be read first. *(Rules → Homework rules → Hide finished answers)*
-- **Safety alerts (always on).** When a kid asks any AI site they can use about self-harm, vaping, drugs/alcohol, sexual content, weapons, eating disorders, dangerous challenges, or getting around parental controls, the parent gets an alert in Activity with the kid's message. **Nothing is blocked, and the kid sees nothing different.** The check is passive: it never pauses or changes what the kid sends. Self-harm alerts are marked urgent and include 988 guidance for the parent. *(Rules → Safety alerts lists the topics)*
+- **Hide finished answers.** On Guided chatbots, if the AI answers a schoolwork prompt with a finished essay or worked-out homework, Guidance blurs it and shows hints instead. Answers to schoolwork prompts stay blurred while they load, so they can't be read first. *(Home → Rules for LLMs (Chatbots) → Hide finished answers)*
+- **Safety alerts (always on).** When a kid asks any AI site they can use about self-harm, vaping, drugs/alcohol, sexual content, weapons, eating disorders, dangerous challenges, or getting around parental controls, the parent gets an alert in Activity with the kid's message. **Nothing is blocked, and the kid sees nothing different.** The check is passive: it never pauses or changes what the kid sends. Self-harm alerts are marked urgent and include 988 guidance for the parent. *(Home → Safety alerts lists the topics)*
 - **Rules apply live.** Open pages re-check the rules every 15 seconds. A parent's change reaches an open tab without a reload, and a blocked page reopens the site by itself when it's allowed again.
 - **Ask a parent.** From the blocked page, or when a prompt or answer is stopped, the kid can ask for access with a reason and a length (15/30/60 min). The parent approves (choosing the length) or says "Not now" in Activity. Approval opens just that site, beats every other rule, and ends on its own. The Activity tab shows a badge for pending requests and new alerts.
 
@@ -116,7 +116,7 @@ Examples:
 ## Setup and run
 
 1. **Server:** `cd Backend/functions && npm install && npm run build && npm start`. An OpenAI key is optional (`.env.example`). Without one, the built-in rules handle the prompt checks.
-2. **App:** open `GuideAI.xcodeproj`, choose the **GuideAI Demo** scheme, and Run. **Sign in** with a demo account (see the table above), or create a **New family**. On an iPhone, enter your Mac's Wi-Fi address under Server address first.
+2. **App:** open `GuideAI.xcodeproj`, choose the **GuideAI** scheme, and Run. **Sign in** with a demo account (see the table above), or create a **New family**. On an iPhone, enter your Mac's Wi-Fi address under Server address first.
 3. **Kid's phone:** turn on the Guidance extension in Settings → Apps → Safari → Extensions (All Websites → Allow). Pair it from Safari's page menu with the kid's code: in the app, Setup → tap the kid.
 4. **Screen Time:** set a Screen Time passcode, put 1-minute App Limits on the native AI apps and other browsers, and block deleting apps.
 

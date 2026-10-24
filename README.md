@@ -35,7 +35,7 @@ npm install
 npm run build && npm start        # http://localhost:8080 (OpenAI key optional, see .env.example)
 
 # 2. App (from the repo root)
-open GuideAI.xcodeproj            # choose the "GuideAI Demo" scheme → Run
+open GuideAI.xcodeproj            # choose the "GuideAI" scheme → Run
 ```
 
 Full steps, including the iPhone and Safari extension setup: **[Docs/SETUP.md](Docs/SETUP.md)**. Screenshots of every screen: **[Docs/pages](Docs/pages/README.md)**. Video script: **[Docs/DEMO.md](Docs/DEMO.md)**. Problems: **[Docs/TROUBLESHOOTING.md](Docs/TROUBLESHOOTING.md)**.

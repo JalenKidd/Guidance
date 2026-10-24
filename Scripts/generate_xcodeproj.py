@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from pathlib import Path
 
@@ -35,30 +34,6 @@ def main() -> None:
     main_swift = swift_files(ROOT / "GuideAI")
     test_swift = swift_files(ROOT / "GuideAITests")
 
-    ext_targets = {
-        "GuideAIShieldConfiguration": {
-            "folder": ROOT / "Extensions/GuideAIShieldConfiguration",
-            "product": "GuideAIShieldConfiguration.appex",
-            "bundle": "com.cac.guideai.ShieldConfiguration",
-            "entitlements": "Extensions/GuideAIShieldConfiguration/GuideAIShieldConfiguration.entitlements",
-            "frameworks": ["ManagedSettings.framework", "ManagedSettingsUI.framework"],
-        },
-        "GuideAIShieldAction": {
-            "folder": ROOT / "Extensions/GuideAIShieldAction",
-            "product": "GuideAIShieldAction.appex",
-            "bundle": "com.cac.guideai.ShieldAction",
-            "entitlements": "Extensions/GuideAIShieldAction/GuideAIShieldAction.entitlements",
-            "frameworks": ["ManagedSettings.framework"],
-        },
-        "GuideAIDeviceActivityMonitor": {
-            "folder": ROOT / "Extensions/GuideAIDeviceActivityMonitor",
-            "product": "GuideAIDeviceActivityMonitor.appex",
-            "bundle": "com.cac.guideai.DeviceActivityMonitor",
-            "entitlements": "Extensions/GuideAIDeviceActivityMonitor/GuideAIDeviceActivityMonitor.entitlements",
-            "frameworks": ["DeviceActivity.framework"],
-        },
-    }
-
     file_refs: dict[Path, str] = {}
 
     def file_ref(path: Path) -> str:
@@ -74,7 +49,6 @@ def main() -> None:
         return {
             ".swift": "sourcecode.swift",
             ".plist": "text.plist.xml",
-            ".entitlements": "text.plist.entitlements",
             ".json": "text.json",
             ".js": "sourcecode.javascript",
             ".html": "text.html",
@@ -92,30 +66,16 @@ def main() -> None:
 
     pbx.objects[main_group]["children"] = [guideai_group, ext_group, tests_group, products_group]
 
-    assets_path = ROOT / "GuideAI/Assets.xcassets"
-    assets_ref = file_ref(assets_path)
-    entitlements_ref = file_ref(ROOT / "GuideAI/GuideAI.entitlements")
+    assets_ref = file_ref(ROOT / "GuideAI/Assets.xcassets")
     info_plist_ref = file_ref(ROOT / "GuideAI/Info.plist")
 
     guideai_swift_refs = [file_ref(p) for p in main_swift]
-    pbx.objects[guideai_group]["children"] = guideai_swift_refs + [assets_ref, entitlements_ref, info_plist_ref]
-
-    # Extension groups & file refs
-    ext_target_ids: dict[str, dict] = {}
-    embed_files: list[str] = []
-
-    for name, cfg in ext_targets.items():
-        g = pbx.add("PBXGroup", children=[], name=name, sourceTree="<group>")
-        pbx.objects[ext_group]["children"].append(g)
-        sources = [file_ref(p) for p in swift_files(cfg["folder"])]
-        plist_ref = file_ref(cfg["folder"] / "Info.plist")
-        ent_ref = file_ref(ROOT / cfg["entitlements"])
-        pbx.objects[g]["children"] = sources + [plist_ref, ent_ref]
+    pbx.objects[guideai_group]["children"] = guideai_swift_refs + [assets_ref, info_plist_ref]
 
     tests_refs = [file_ref(p) for p in test_swift]
     pbx.objects[tests_group]["children"] = tests_refs
 
-    # Safari Web Extension: the free-team way to enforce AI category rules.
+    # Safari Web Extension: enforces the AI category rules, and signs with a free team.
     # Everything inside Resources/ is copied to the root of the .appex (a top-level
     # "Resources" directory would make iOS treat it as a macOS-style bundle).
     safari_folder = ROOT / "Extensions/GuidanceSafari"
@@ -136,31 +96,9 @@ def main() -> None:
 
     # Products
     app_product = pbx.add("PBXFileReference", explicitFileType="wrapper.application", includeInIndex=0, path="GuideAI.app", sourceTree="BUILT_PRODUCTS_DIR")
-    demo_product = pbx.add("PBXFileReference", explicitFileType="wrapper.application", includeInIndex=0, path="GuideAIDemo.app", sourceTree="BUILT_PRODUCTS_DIR")
+    safari_product = pbx.add("PBXFileReference", explicitFileType="wrapper.app-extension", includeInIndex=0, path="GuidanceSafari.appex", sourceTree="BUILT_PRODUCTS_DIR")
     test_product = pbx.add("PBXFileReference", explicitFileType="wrapper.cfbundle", includeInIndex=0, path="GuideAITests.xctest", sourceTree="BUILT_PRODUCTS_DIR")
-    pbx.objects[products_group]["children"] = [app_product, demo_product]
-
-    ext_products: dict[str, str] = {}
-    for name, cfg in ext_targets.items():
-        pr = pbx.add(
-            "PBXFileReference",
-            explicitFileType="wrapper.app-extension",
-            includeInIndex=0,
-            path=cfg["product"],
-            sourceTree="BUILT_PRODUCTS_DIR",
-        )
-        ext_products[name] = pr
-        pbx.objects[products_group]["children"].append(pr)
-
-    safari_product = pbx.add(
-        "PBXFileReference",
-        explicitFileType="wrapper.app-extension",
-        includeInIndex=0,
-        path="GuidanceSafari.appex",
-        sourceTree="BUILT_PRODUCTS_DIR",
-    )
-    pbx.objects[products_group]["children"].append(safari_product)
-    pbx.objects[products_group]["children"].append(test_product)
+    pbx.objects[products_group]["children"] = [app_product, safari_product, test_product]
 
     # Build phases helper
     def sources_phase(refs: list[str]) -> str:
@@ -185,91 +123,6 @@ def main() -> None:
             pbx.objects[phase]["files"].append(bf)
         return phase
 
-    # App target
-    app_sources = sources_phase(guideai_swift_refs)
-    app_frameworks = frameworks_phase(
-        [
-            "FamilyControls.framework",
-            "ManagedSettings.framework",
-            "DeviceActivity.framework",
-            "LocalAuthentication.framework",
-        ]
-    )
-    app_resources = resources_phase([assets_ref])
-
-    embed_phase = pbx.add(
-        "PBXCopyFilesBuildPhase",
-        buildActionMask=2147483647,
-        dstPath="",
-        dstSubfolderSpec=13,
-        files=[],
-        name="Embed Foundation Extensions",
-        runOnlyForDeploymentPostprocessing=0,
-    )
-
-    ext_native: dict[str, str] = {}
-    ext_dep_ids: list[str] = []
-
-    for name, cfg in ext_targets.items():
-        folder = cfg["folder"]
-        src_refs = [file_ref(p) for p in swift_files(folder)]
-        src_phase = sources_phase(src_refs)
-        fw_phase = frameworks_phase(cfg["frameworks"])
-        res_phase = resources_phase([])
-
-        target = pbx.add(
-            "PBXNativeTarget",
-            name=name,
-            productName=name,
-            productReference=ext_products[name],
-            productType="com.apple.product-type.app-extension",
-            buildConfigurationList=pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release"),
-            buildPhases=[src_phase, fw_phase, res_phase],
-            dependencies=[],
-        )
-        ext_native[name] = target
-
-        bf = pbx.add("PBXBuildFile", fileRef=ext_products[name], settings={"ATTRIBUTES": ["RemoveHeadersOnCopy"]})
-        pbx.objects[embed_phase]["files"].append(bf)
-
-        dep = pbx.add("PBXTargetDependency", target=target, targetProxy=pbx.add("PBXContainerItemProxy", containerPortal="", proxyType=1, remoteGlobalIDString=target, remoteInfo=name))
-        ext_dep_ids.append(dep)
-
-        ext_target_ids[name] = {
-            "target": target,
-            "cfg_list": pbx.objects[target]["buildConfigurationList"],
-            "entitlements": cfg["entitlements"],
-            "bundle": cfg["bundle"],
-            "info_plist": (folder / "Info.plist").relative_to(ROOT).as_posix(),
-        }
-
-    app_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
-    app_target = pbx.add(
-        "PBXNativeTarget",
-        name="GuideAI",
-        productName="GuideAI",
-        productReference=app_product,
-        productType="com.apple.product-type.application",
-        buildConfigurationList=app_cfg_list,
-        buildPhases=[app_sources, app_frameworks, app_resources, embed_phase],
-        dependencies=[pbx.add("PBXTargetDependency", target=ext_native[n], targetProxy=pbx.add("PBXContainerItemProxy", containerPortal="", proxyType=1, remoteGlobalIDString=ext_native[n], remoteInfo=n)) for n in ext_targets],
-    )
-
-    # Installable video-demo target. It intentionally omits Family Controls and
-    # App Group entitlements so a free Personal Team can sign it. The full
-    # GuideAI target above remains the source of truth for real Screen Time
-    # shielding and still embeds all three extensions.
-    demo_sources = sources_phase(guideai_swift_refs)
-    demo_frameworks = frameworks_phase(
-        [
-            "FamilyControls.framework",
-            "ManagedSettings.framework",
-            "DeviceActivity.framework",
-            "LocalAuthentication.framework",
-        ]
-    )
-    demo_resources = resources_phase([assets_ref])
-
     safari_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
     safari_target = pbx.add(
         "PBXNativeTarget",
@@ -285,7 +138,10 @@ def main() -> None:
         ],
         dependencies=[],
     )
-    demo_embed_phase = pbx.add(
+
+    # App target: the parent app with the Safari extension inside. No paid-team
+    # entitlements, so a free Personal Team can install it on an iPhone.
+    embed_phase = pbx.add(
         "PBXCopyFilesBuildPhase",
         buildActionMask=2147483647,
         dstPath="",
@@ -294,15 +150,20 @@ def main() -> None:
         name="Embed Foundation Extensions",
         runOnlyForDeploymentPostprocessing=0,
     )
-    demo_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
-    demo_target = pbx.add(
+    app_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
+    app_target = pbx.add(
         "PBXNativeTarget",
-        name="GuideAI Demo",
-        productName="GuideAIDemo",
-        productReference=demo_product,
+        name="GuideAI",
+        productName="GuideAI",
+        productReference=app_product,
         productType="com.apple.product-type.application",
-        buildConfigurationList=demo_cfg_list,
-        buildPhases=[demo_sources, demo_frameworks, demo_resources, demo_embed_phase],
+        buildConfigurationList=app_cfg_list,
+        buildPhases=[
+            sources_phase(guideai_swift_refs),
+            frameworks_phase(["LocalAuthentication.framework"]),
+            resources_phase([assets_ref]),
+            embed_phase,
+        ],
         dependencies=[pbx.add("PBXTargetDependency", target=safari_target, targetProxy=pbx.add("PBXContainerItemProxy", containerPortal="", proxyType=1, remoteGlobalIDString=safari_target, remoteInfo="GuidanceSafari"))],
     )
 
@@ -310,17 +171,17 @@ def main() -> None:
     project_cfg_list = pbx.add("XCConfigurationList", buildConfigurations=[], defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
     project = pbx.add(
         "PBXProject",
-        attributes={"BuildIndependentTargetsInParallel": 1, "LastUpgradeCheck": 2600, "TargetAttributes": {app_target: {"CreatedOnToolsVersion": "16.0"}, demo_target: {"CreatedOnToolsVersion": "16.0"}}},
+        attributes={"BuildIndependentTargetsInParallel": 1, "LastUpgradeCheck": 2600, "TargetAttributes": {app_target: {"CreatedOnToolsVersion": "16.0"}}},
         buildConfigurationList=project_cfg_list,
         compatibilityVersion="Xcode 14.0",
         developmentRegion="en",
         hasScannedForEncodings=0,
-        knownRegions=["en"],
+        knownRegions=["en", "Base"],
         mainGroup=main_group,
         productRefGroup=products_group,
         projectDirPath="",
         projectRoot="",
-        targets=[app_target, demo_target, safari_target] + [ext_native[n] for n in ext_targets],
+        targets=[app_target, safari_target],
     )
 
     for obj in pbx.objects.values():
@@ -395,31 +256,14 @@ def main() -> None:
         {
             "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
             "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
-            "CODE_SIGN_ENTITLEMENTS": "GuideAI/GuideAI.entitlements",
-            "CURRENT_PROJECT_VERSION": "1",
-            "GENERATE_INFOPLIST_FILE": "NO",
-            "INFOPLIST_FILE": "GuideAI/Info.plist",
-            "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
-            "MARKETING_VERSION": "1.0",
-            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai",
-            "PRODUCT_NAME": "$(TARGET_NAME)",
-            "SWIFT_EMIT_LOC_STRINGS": "YES",
-        },
-    )
-
-    add_cfgs(
-        demo_cfg_list,
-        {
-            "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-            "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
             "CURRENT_PROJECT_VERSION": "1",
             "DEVELOPMENT_TEAM": "276MB976U5",
             "GENERATE_INFOPLIST_FILE": "NO",
             "INFOPLIST_FILE": "GuideAI/Info.plist",
             "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
             "MARKETING_VERSION": "1.0",
-            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai.demo",
-            "PRODUCT_NAME": "GuideAIDemo",
+            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai",
+            "PRODUCT_NAME": "$(TARGET_NAME)",
             "SWIFT_EMIT_LOC_STRINGS": "YES",
         },
     )
@@ -433,27 +277,11 @@ def main() -> None:
             "INFOPLIST_FILE": "Extensions/GuidanceSafari/Info.plist",
             "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks",
             "MARKETING_VERSION": "1.0",
-            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai.demo.Safari",
+            "PRODUCT_BUNDLE_IDENTIFIER": "com.cac.guideai.Safari",
             "PRODUCT_NAME": "$(TARGET_NAME)",
             "SKIP_INSTALL": "YES",
         },
     )
-
-    for name, meta in ext_target_ids.items():
-        add_cfgs(
-            meta["cfg_list"],
-            {
-                "CODE_SIGN_ENTITLEMENTS": meta["entitlements"],
-                "CURRENT_PROJECT_VERSION": "1",
-                "GENERATE_INFOPLIST_FILE": "NO",
-                "INFOPLIST_FILE": meta["info_plist"],
-                "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks",
-                "MARKETING_VERSION": "1.0",
-                "PRODUCT_BUNDLE_IDENTIFIER": meta["bundle"],
-                "PRODUCT_NAME": "$(TARGET_NAME)",
-                "SKIP_INSTALL": "YES",
-            },
-        )
 
     add_cfgs(
         test_cfg_list,
@@ -481,7 +309,7 @@ def main() -> None:
     scheme_dir = out_dir / "xcshareddata" / "xcschemes"
     scheme_dir.mkdir(parents=True, exist_ok=True)
     (scheme_dir / "GuideAI.xcscheme").write_text(scheme_xml(app_target, test_target))
-    (scheme_dir / "GuideAI Demo.xcscheme").write_text(demo_scheme_xml(demo_target))
+    (scheme_dir / "GuideAI Demo.xcscheme").unlink(missing_ok=True)
     workspace_dir = out_dir / "project.xcworkspace"
     workspace_dir.mkdir(parents=True, exist_ok=True)
     (workspace_dir / "contents.xcworkspacedata").write_text(
@@ -607,56 +435,6 @@ def scheme_xml(app_target: str, test_target: str) -> str:
             BlueprintIdentifier = "{app_target}"
             BuildableName = "GuideAI.app"
             BlueprintName = "GuideAI"
-            ReferencedContainer = "container:GuideAI.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
-   </LaunchAction>
-</Scheme>
-"""
-
-
-def demo_scheme_xml(demo_target: str) -> str:
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<Scheme
-   LastUpgradeVersion = "2600"
-   version = "1.7">
-   <BuildAction
-      parallelizeBuildables = "YES"
-      buildImplicitDependencies = "YES">
-      <BuildActionEntries>
-         <BuildActionEntry
-            buildForTesting = "NO"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "{demo_target}"
-               BuildableName = "GuideAIDemo.app"
-               BlueprintName = "GuideAI Demo"
-               ReferencedContainer = "container:GuideAI.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-      </BuildActionEntries>
-   </BuildAction>
-   <LaunchAction
-      buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
-      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      launchStyle = "0"
-      useCustomWorkingDirectory = "NO"
-      ignoresPersistentStateOnLaunch = "NO"
-      debugDocumentVersioning = "YES"
-      debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "{demo_target}"
-            BuildableName = "GuideAIDemo.app"
-            BlueprintName = "GuideAI Demo"
             ReferencedContainer = "container:GuideAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
