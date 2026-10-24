@@ -1,24 +1,146 @@
 import SwiftUI
 
-/// Saved means the server accepted the edit. Applied requires an explicit Safari acknowledgement.
-struct PolicyDeliveryBanner: View {
-    @EnvironmentObject private var store: FamilyStore
+extension EnvironmentValues {
+    /// Switches the parent tab bar to Activity. Set by ParentTabView.
+    @Entry var openActivity: () -> Void = {}
+}
+
+/// Large page title with the notifications bell to its right. Used at the top of each parent tab,
+/// which hides its navigation bar so the bell can sit level with the title.
+struct TabHeader<Trailing: View>: View {
+    let title: String
+    @ViewBuilder var trailing: Trailing
+
+    init(_ title: String, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.trailing = trailing()
+    }
 
     var body: some View {
-        if !store.targetKids.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(store.targetKids) { kid in
-                    row(kid, state: store.deliveryState(for: kid))
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.largeTitle.bold())
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            Group {
+                trailing
+                NotificationsButton()
+            }
+            // Sit a little above the text's center, level with the capital letters.
+            .alignmentGuide(VerticalAlignment.center) { $0[VerticalAlignment.center] + 3 }
+        }
+        .padding(.top, 4)
+    }
+}
+
+/// Round header button matching the bell.
+struct HeaderIconLabel: View {
+    let systemImage: String
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.body.weight(.semibold))
+            .frame(width: 40, height: 40)
+            .background(GuideTheme.tertiaryFill, in: Circle())
+    }
+}
+
+/// Bell beside each parent tab's title. Rule delivery, errors, and new Activity items live behind it.
+struct NotificationsButton: View {
+    @EnvironmentObject private var store: FamilyStore
+    @State private var showing = false
+
+    var body: some View {
+        Button { showing = true } label: {
+            Group {
+                if count > 0 {
+                    Image(systemName: "bell.badge")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.red, GuideTheme.brand)
+                } else {
+                    Image(systemName: "bell")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(GuideTheme.pageBackground)
+            .font(.body.weight(.semibold))
+            .frame(width: 40, height: 40)
+            .background(GuideTheme.tertiaryFill, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(count > 0 ? "Notifications, \(count) new" : "Notifications")
+        .sheet(isPresented: $showing) {
+            NotificationsSheet()
+                .presentationDetents([.medium, .large])
         }
     }
 
-    private func row(_ kid: Kid, state: PolicyDeliveryState) -> some View {
+    /// Everything except rules already applied on the kid's phone.
+    private var count: Int {
+        let delivery = store.kids.filter {
+            if case .applied = store.deliveryState(for: $0) { return false }
+            return true
+        }.count
+        return delivery + store.attentionCount + (store.errorMessage == nil ? 0 : 1)
+    }
+}
+
+private struct NotificationsSheet: View {
+    @EnvironmentObject private var store: FamilyStore
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openActivity) private var openActivity
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error = store.errorMessage {
+                    Section {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                            Text(error).font(.subheadline)
+                            Spacer(minLength: 0)
+                            Button("Dismiss") { store.errorMessage = nil }
+                                .font(.subheadline.weight(.semibold))
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                if store.attentionCount > 0 {
+                    Section("Activity") {
+                        Button {
+                            dismiss()
+                            openActivity()
+                        } label: {
+                            Label(store.attentionCount == 1 ? "1 new request or alert" : "\(store.attentionCount) new requests and alerts",
+                                  systemImage: "hand.raised.fill")
+                        }
+                    }
+                }
+                if !store.kids.isEmpty {
+                    Section("Rules") {
+                        ForEach(store.kids) { kid in
+                            PolicyDeliveryRow(kid: kid, showsName: store.kids.count > 1)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// Saved means the server accepted the edit. Applied requires an explicit Safari acknowledgement.
+private struct PolicyDeliveryRow: View {
+    @EnvironmentObject private var store: FamilyStore
+    let kid: Kid
+    let showsName: Bool
+
+    var body: some View {
+        let state = store.deliveryState(for: kid)
         HStack(alignment: .top, spacing: 10) {
             if state == .saving {
                 ProgressView().controlSize(.small)
@@ -27,20 +149,21 @@ struct PolicyDeliveryBanner: View {
                     .foregroundStyle(color(state))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title(kid, state: state)).font(.subheadline.weight(.semibold))
-                Text(detail(kid, state: state)).font(.caption).foregroundStyle(.secondary)
+                Text(title(state)).font(.subheadline.weight(.semibold))
+                Text(detail(state)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             if state == .waitingToRetry || state == .needsAttention {
                 Button("Retry") { store.retryPolicy(for: kid.id) }
                     .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.borderless)
             }
         }
         .accessibilityElement(children: .contain)
     }
 
-    private func title(_ kid: Kid, state: PolicyDeliveryState) -> String {
-        let prefix = store.isAllKids ? "\(kid.name): " : ""
+    private func title(_ state: PolicyDeliveryState) -> String {
+        let prefix = showsName ? "\(kid.name): " : ""
         switch state {
         case .saving: return prefix + "Saving rules…"
         case .waitingToRetry: return prefix + "Waiting to save"
@@ -50,7 +173,7 @@ struct PolicyDeliveryBanner: View {
         }
     }
 
-    private func detail(_ kid: Kid, state: PolicyDeliveryState) -> String {
+    private func detail(_ state: PolicyDeliveryState) -> String {
         switch state {
         case .saving:
             return "Your changes are kept on this phone while they save."

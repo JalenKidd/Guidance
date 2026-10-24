@@ -10,13 +10,14 @@ struct SchedulesView: View {
                 if let kid = store.selectedKid {
                     list(kid)
                 } else {
-                    ContentUnavailableView("No kid selected", systemImage: "person.crop.circle.badge.questionmark")
+                    VStack {
+                        TabHeader("Schedules").padding(.horizontal, 16)
+                        ContentUnavailableView("No kid selected", systemImage: "person.crop.circle.badge.questionmark")
+                    }
                 }
             }
             .navigationTitle("Schedules")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { addMenu }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editing) { schedule in
                 ScheduleEditorView(schedule: schedule)
             }
@@ -29,7 +30,7 @@ struct SchedulesView: View {
             Button("Bedtime (all AI off)") { editing = .bedtimePreset.withFreshID() }
             Button("Custom schedule") { editing = .new(name: "New schedule") }
         } label: {
-            Image(systemName: "plus")
+            HeaderIconLabel(systemImage: "plus")
         }
         .accessibilityLabel("Add schedule")
     }
@@ -54,6 +55,10 @@ struct SchedulesView: View {
 
         return List {
             Section {
+                TabHeader("Schedules") { addMenu }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 KidSelectorBar()
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)

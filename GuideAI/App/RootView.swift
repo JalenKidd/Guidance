@@ -85,9 +85,7 @@ private struct ParentTabView: View {
                 .tabItem { Label("Setup", systemImage: "iphone.gen3") }
                 .tag(ParentTab.setup)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            PolicyDeliveryBanner()
-        }
+        .environment(\.openActivity) { tab = .activity }
         // While the parent has the app open, check for new requests and alerts.
         .task {
             while !Task.isCancelled {

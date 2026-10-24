@@ -11,6 +11,12 @@ struct SetupView: View {
         NavigationStack {
             Form {
                 Section {
+                    TabHeader("Setup")
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+
+                Section {
                     ForEach(store.kids) { kid in
                         NavigationLink {
                             KidProfileView(kidID: kid.id)
@@ -77,6 +83,7 @@ struct SetupView: View {
                 }
             }
             .navigationTitle("Setup")
+            .toolbar(.hidden, for: .navigationBar)
             .refreshable { await store.refresh() }
             .confirmationDialog("Sign out of this family?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { store.signOut() }

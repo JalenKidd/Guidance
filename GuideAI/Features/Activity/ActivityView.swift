@@ -7,9 +7,7 @@ struct ActivityView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: GuideTheme.sectionSpacing) {
-                    if let error = store.errorMessage {
-                        ErrorBanner(message: error) { store.errorMessage = nil }
-                    }
+                    TabHeader("Activity")
                     KidSelectorBar()
                     if !store.targetKids.isEmpty {
                         content(store.targetKids)
@@ -25,6 +23,7 @@ struct ActivityView: View {
                 for kid in store.targetKids { store.markAlertsSeen(for: kid.id) }
             }
             .navigationTitle("Activity")
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 

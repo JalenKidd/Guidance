@@ -7,8 +7,8 @@ struct RulesView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: GuideTheme.sectionSpacing) {
-                    if let error = store.errorMessage {
-                        ErrorBanner(message: error) { store.errorMessage = nil }
+                    TabHeader("Rules") {
+                        if store.isSaving { ProgressView() }
                     }
                     KidSelectorBar()
                     if let kid = store.selectedKid, let catalog = store.catalog {
@@ -25,11 +25,7 @@ struct RulesView: View {
             .background(GuideTheme.pageBackground.ignoresSafeArea())
             .refreshable { await store.refresh() }
             .navigationTitle("Rules")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if store.isSaving { ProgressView() }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: CategoryRoute.self) { route in
                 CategoryDetailView(categoryID: route.id)
             }

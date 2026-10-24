@@ -218,24 +218,42 @@ struct WelcomeView: View {
 struct ServerAddressField: View {
     @Binding var address: String
     @State private var status: String?
+    /// Hidden by default so the address (often a home IP) doesn't show on screen.
+    @State private var isRevealed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("http://192.168.1.10:8080", text: $address)
+            HStack(spacing: 8) {
+                Group {
+                    if isRevealed {
+                        TextField("Server address", text: $address)
+                    } else {
+                        SecureField("Server address", text: $address)
+                    }
+                }
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .padding(10)
-                .background(GuideTheme.tertiaryFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .onChange(of: address) { _, value in
-                    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if trimmed.isEmpty {
-                        UserDefaults.standard.removeObject(forKey: AppConfig.serverURLKey)
-                    } else {
-                        UserDefaults.standard.set(trimmed, forKey: AppConfig.serverURLKey)
-                    }
-                    status = nil
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isRevealed ? "Hide server address" : "Show server address")
+            }
+            .padding(10)
+            .background(GuideTheme.tertiaryFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .onChange(of: address) { _, value in
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    UserDefaults.standard.removeObject(forKey: AppConfig.serverURLKey)
+                } else {
+                    UserDefaults.standard.set(trimmed, forKey: AppConfig.serverURLKey)
+                }
+                status = nil
+            }
             HStack {
                 Button("Test connection") {
                     Task {
